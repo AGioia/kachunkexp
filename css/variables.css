@@ -1,0 +1,34 @@
+/* ═══ KaChunk Design Tokens ═══ */
+:root {
+  /* Background */
+  --bg: #FDF6EC;
+  --card: #FFFAF0;
+
+  /* Accent */
+  --accent: #D4883A;
+  --accent-light: #E8A862;
+  --accent-dark: #B56E28;
+
+  /* Text */
+  --text: #3C2A14;
+  --text-light: #7A6350;
+  --text-faint: #B8A894;
+
+  /* Shadows */
+  --shadow: rgba(60, 42, 20, 0.1);
+  --shadow-strong: rgba(60, 42, 20, 0.18);
+
+  /* Semantic */
+  --danger: #C0392B;
+  --success: #27AE60;
+
+  /* Player / Disc */
+  --disc-outer: #2C1810;
+  --disc-mid: #1A0E08;
+  --disc-groove: rgba(255,255,255,0.04);
+  --disc-label: #D4883A;
+
+  /* Safe areas */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}

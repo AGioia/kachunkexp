@@ -1,0 +1,10 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'>
+  <rect width='192' height='192' rx='38.400000000000006' fill='#D4883A'/>
+  <circle cx='96' cy='96' r='62.400000000000006' fill='#2C1810'/>
+  <circle cx='96' cy='96' r='55.67999999999999' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1.92'/>
+  <circle cx='96' cy='96' r='46.08' fill='none' stroke='rgba(255,255,255,0.05)' stroke-width='1.536'/>
+  <circle cx='96' cy='96' r='36.480000000000004' fill='none' stroke='rgba(255,255,255,0.04)' stroke-width='1.536'/>
+  <circle cx='96' cy='96' r='14.399999999999999' fill='#D4883A'/>
+  <circle cx='96' cy='96' r='5.76' fill='#FDF6EC'/>
+  <text x='96' y='176.64000000000001' text-anchor='middle' font-family='-apple-system,sans-serif' font-weight='700' font-size='21.12' fill='#FDF6EC'>CHUNK</text>
+</svg>

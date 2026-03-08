@@ -1,0 +1,574 @@
+/* ═══ FAB ═══ */
+.fab {
+  position: fixed;
+  bottom: calc(24px + var(--safe-bottom));
+  right: 20px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  border: none;
+  font-size: 34px;
+  font-weight: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(212,136,58,0.4);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  z-index: 50;
+  -webkit-tap-highlight-color: rgba(212,136,58,0.3);
+  touch-action: manipulation;
+}
+
+.fab:active {
+  transform: scale(0.92);
+  box-shadow: 0 2px 8px rgba(212,136,58,0.3);
+}
+
+/* ═══ Chunk Cards ═══ */
+.chunk-card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px var(--shadow);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.chunk-card:active {
+  transform: scale(0.98);
+  box-shadow: 0 1px 4px var(--shadow);
+}
+
+.chunk-card .cd-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: radial-gradient(circle at 50% 50%, var(--bg) 12%, transparent 13%),
+              radial-gradient(circle at 50% 50%, var(--disc-outer) 14%, transparent 15%),
+              conic-gradient(from 0deg, rgba(255,255,255,0.03) 0%, transparent 10%, rgba(255,255,255,0.03) 20%, transparent 30%, rgba(255,255,255,0.03) 40%, transparent 50%, rgba(255,255,255,0.03) 60%, transparent 70%, rgba(255,255,255,0.03) 80%, transparent 90%),
+              radial-gradient(circle at 50% 50%, transparent 38%, var(--accent) 39%, var(--accent) 52%, transparent 53%),
+              radial-gradient(circle at 50% 50%, var(--disc-outer) 0%, var(--disc-mid) 100%);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.chunk-card .card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.chunk-card .card-name {
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chunk-card .card-meta {
+  font-size: 13px;
+  color: var(--text-light);
+}
+
+.chunk-card .card-meta span {
+  margin-right: 12px;
+}
+
+.chunk-card .card-schedule {
+  font-size: 12px;
+  color: var(--accent);
+  margin-top: 3px;
+}
+
+.chunk-card .card-arrow {
+  color: var(--text-faint);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.card-has-subchunks {
+  font-size: 11px;
+  color: var(--accent);
+  opacity: 0.7;
+  margin-left: 4px;
+}
+
+/* ═══ Form Elements ═══ */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.form-input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid rgba(0,0,0,0.06);
+  border-radius: 12px;
+  font-size: 17px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--card);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus {
+  border-color: var(--accent);
+}
+
+.form-input::placeholder {
+  color: var(--text-faint);
+}
+
+/* ═══ Step Editor ═══ */
+.steps-section {
+  margin-top: 24px;
+}
+
+.steps-section .section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 4px var(--shadow);
+}
+
+.step-item .step-number {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.step-item input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-size: 16px;
+  font-family: inherit;
+  color: var(--text);
+  outline: none;
+  padding: 6px 4px;
+}
+
+.step-item input[type="text"]::placeholder {
+  color: var(--text-faint);
+}
+
+.step-item .step-duration {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.step-item .step-duration input {
+  width: 48px;
+  border: 2px solid rgba(0,0,0,0.06);
+  border-radius: 8px;
+  padding: 6px 4px;
+  font-size: 15px;
+  font-family: inherit;
+  text-align: center;
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+}
+
+.step-item .step-duration input:focus {
+  border-color: var(--accent);
+}
+
+.step-item .step-duration span {
+  font-size: 13px;
+  color: var(--text-light);
+}
+
+.step-reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.step-reorder button, .step-delete {
+  width: 28px;
+  height: 22px;
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  border-radius: 4px;
+}
+
+.step-reorder button:active, .step-delete:active {
+  background: rgba(0,0,0,0.05);
+}
+
+.step-delete {
+  width: 28px;
+  height: 28px;
+  color: var(--danger);
+  font-size: 18px;
+  opacity: 0.6;
+}
+
+.step-delete:active {
+  opacity: 1;
+}
+
+.add-step-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  border: 2px dashed rgba(0,0,0,0.1);
+  border-radius: 12px;
+  background: none;
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  margin-top: 4px;
+  transition: background 0.15s;
+}
+
+.add-step-btn:active {
+  background: rgba(212,136,58,0.06);
+}
+
+.add-btns-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.add-btns-row .add-step-btn {
+  margin-top: 0;
+  flex: 1;
+}
+
+/* ═══ Sub-chunk items ═══ */
+.step-item.sub-chunk-item {
+  background: #FFF8EE;
+  border: 1.5px solid rgba(212,136,58,0.18);
+  cursor: pointer;
+  position: relative;
+}
+
+.sub-chunk-info {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 0;
+}
+
+.sub-chunk-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sub-chunk-name .link-icon {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.sub-chunk-meta {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 2px;
+}
+
+.sub-chunk-deleted {
+  color: var(--danger);
+  font-style: italic;
+}
+
+.sub-chunk-preview {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+  background: rgba(0,0,0,0.02);
+  border-radius: 8px;
+  margin-top: 0;
+}
+
+.sub-chunk-preview.expanded {
+  max-height: 500px;
+  padding: 8px 10px;
+  margin-top: 6px;
+}
+
+.sub-chunk-preview-step {
+  font-size: 13px;
+  color: var(--text-light);
+  padding: 3px 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+.sub-chunk-preview-step span:last-child {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+/* ═══ Save Button ═══ */
+.save-btn {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: 14px;
+  background: var(--accent);
+  color: white;
+  font-size: 17px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(212,136,58,0.3);
+  margin-top: 24px;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.save-btn:active {
+  transform: scale(0.97);
+  box-shadow: 0 2px 6px rgba(212,136,58,0.2);
+}
+
+/* ═══ Settings Gear ═══ */
+.settings-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: none;
+  color: var(--text-light);
+  font-size: 22px;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.settings-btn:active {
+  background: rgba(0,0,0,0.06);
+  color: var(--accent);
+}
+
+/* ═══ Step Sound Picker ═══ */
+.step-sound-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: rgba(0,0,0,0.04);
+  color: var(--text-faint);
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.step-sound-btn.has-sound {
+  color: var(--accent);
+  background: rgba(212,136,58,0.1);
+}
+
+.step-sound-btn:active {
+  background: rgba(0,0,0,0.08);
+}
+
+.step-sound-dropdown {
+  position: fixed;
+  z-index: 200;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  min-width: 160px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.step-sound-dropdown.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.step-sound-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  width: 100%;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 8px;
+  font-family: inherit;
+}
+
+.step-sound-option:active {
+  background: rgba(0,0,0,0.04);
+}
+
+.step-sound-option.selected {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.step-sound-option .opt-icon {
+  font-size: 16px;
+  width: 24px;
+  text-align: center;
+}
+
+/* ═══ Audio Override Section (Editor) ═══ */
+.audio-override-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+}
+
+.audio-override-section .section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.audio-override-section .section-title .icon {
+  font-size: 16px;
+}
+
+/* ═══ Day Toggles (Schedule) ═══ */
+.day-toggles {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 16px 0 24px;
+}
+
+.day-toggle {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid rgba(0,0,0,0.1);
+  background: var(--card);
+  color: var(--text-light);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.day-toggle.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+/* ═══ Time Picker ═══ */
+.time-picker-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.time-picker-wrap input[type="time"] {
+  padding: 12px 16px;
+  border: 2px solid rgba(0,0,0,0.06);
+  border-radius: 12px;
+  font-size: 20px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--card);
+  outline: none;
+}
+
+.time-picker-wrap input[type="time"]:focus {
+  border-color: var(--accent);
+}
+
+/* ═══ Schedule Summary ═══ */
+.schedule-summary {
+  text-align: center;
+  font-size: 15px;
+  color: var(--text-light);
+  padding: 16px;
+  background: var(--card);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 4px var(--shadow);
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.schedule-summary.has-schedule {
+  color: var(--accent);
+  font-weight: 500;
+}

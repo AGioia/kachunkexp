@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="KaChunk">
+<meta name="theme-color" content="#FDF6EC">
+<meta name="description" content="Your task player — build routines, press play">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.svg">
+<title>KaChunk</title>
+<link rel="stylesheet" href="css/variables.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/player.css">
+<link rel="stylesheet" href="css/sheets.css">
+<link rel="stylesheet" href="css/audio.css">
+</head>
+<body>
+
+<!-- ═══ HOME SCREEN ═══ -->
+<div id="homeScreen" class="screen active">
+  <div class="header">
+    <div>
+      <h1>KaChunk</h1>
+      <div class="header-subtitle">Your task player</div>
+    </div>
+    <button class="settings-btn" onclick="window._kachunk.openAudioSettings()" aria-label="Audio Settings">⚙</button>
+  </div>
+  <div class="scroll-content" id="chunkList"></div>
+</div>
+<button class="fab" id="fabBtn" aria-label="Create new chunk">+</button>
+
+<!-- ═══ EDIT SCREEN ═══ -->
+<div id="editScreen" class="screen">
+  <div class="header">
+    <button class="back-btn" onclick="window._kachunk.goHome()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Back
+    </button>
+    <div style="width:60px"></div>
+  </div>
+  <div class="scroll-content">
+    <div class="form-group">
+      <label class="form-label">Chunk Name</label>
+      <input type="text" class="form-input" id="editName" placeholder="Morning Routine" maxlength="50">
+    </div>
+    <div class="steps-section">
+      <div class="section-header">
+        <span class="form-label" style="margin-bottom:0">Steps</span>
+      </div>
+      <div id="editSteps"></div>
+      <div class="add-btns-row">
+        <button class="add-step-btn" onclick="window._kachunk.addStep()">
+          <span style="font-size:20px">+</span> Add Step
+        </button>
+        <button class="add-step-btn" onclick="window._kachunk.openChunkPicker()">
+          <span style="font-size:18px">🔗</span> Add Chunk
+        </button>
+      </div>
+    </div>
+    <div class="audio-override-section" id="editAudioSection">
+      <div class="section-title"><span class="icon">🔊</span> Audio</div>
+      <span class="sound-picker-label">Alarm Sound (overrides default)</span>
+      <div class="sound-picker" id="editAlarmPicker"></div>
+      <span class="sound-picker-label">Background Audio (overrides default)</span>
+      <div class="sound-picker" id="editBgPicker"></div>
+    </div>
+    <button class="save-btn" onclick="window._kachunk.saveChunk()">Save Chunk</button>
+  </div>
+</div>
+
+<!-- ═══ PLAYER SCREEN ═══ -->
+<div id="playerScreen" class="screen player-screen">
+  <div class="player-header">
+    <button class="back-btn" onclick="window._kachunk.stopAndGoHome()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="player-title" id="playerTitle">—</div>
+    <div class="player-audio-row">
+      <button class="player-audio-btn" id="voiceToggleBtn" onclick="window._kachunk.toggleVoiceInPlayer()" aria-label="Toggle voice" title="Voice">🗣</button>
+      <button class="player-audio-btn" id="bgAudioBtn" onclick="window._kachunk.toggleBgAudioPicker()" aria-label="Background audio" title="Background">🔊</button>
+    </div>
+  </div>
+  <div class="player-body">
+    <div class="cd-container">
+      <div class="cd-disc" id="cdDisc">
+        <div class="cd-label"></div>
+        <div class="cd-shine"></div>
+      </div>
+    </div>
+    <div class="player-step-label" id="playerStepLabel">—</div>
+    <div class="player-step-count" id="playerStepCount">—</div>
+    <div class="player-timer" id="playerTimer">00:00</div>
+    <div class="progress-container">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+    <div class="player-controls">
+      <button class="ctrl-btn" onclick="window._kachunk.playerPrev()" aria-label="Previous step">⏮</button>
+      <button class="play-btn" id="playPauseBtn" onclick="window._kachunk.togglePlay()" aria-label="Play/Pause">▶</button>
+      <button class="ctrl-btn" onclick="window._kachunk.playerNext()" aria-label="Next step">⏭</button>
+    </div>
+    <div class="player-steps" id="playerStepsList"></div>
+  </div>
+</div>
+
+<!-- ═══ SCHEDULE SCREEN ═══ -->
+<div id="scheduleScreen" class="screen">
+  <div class="header">
+    <button class="back-btn" onclick="window._kachunk.goHome()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Back
+    </button>
+    <div style="width:60px"></div>
+  </div>
+  <div class="scroll-content">
+    <h2 style="font-size:22px;font-weight:700;margin-bottom:4px" id="scheduleTitle">Schedule</h2>
+    <p style="font-size:14px;color:var(--text-light);margin-bottom:24px" id="scheduleSubtitle">Set recurring reminders</p>
+    <label class="form-label">Repeat On</label>
+    <div class="day-toggles" id="dayToggles"></div>
+    <label class="form-label">Start Time</label>
+    <div class="time-picker-wrap">
+      <input type="time" id="scheduleTime" value="07:00">
+    </div>
+    <div class="schedule-summary" id="scheduleSummary">No schedule set</div>
+    <button class="save-btn" onclick="window._kachunk.saveSchedule()">Save Schedule</button>
+    <button class="save-btn" onclick="window._kachunk.clearSchedule()" style="background:transparent;color:var(--danger);box-shadow:none;margin-top:12px;font-size:15px;">Clear Schedule</button>
+  </div>
+</div>
+
+<!-- ═══ ACTION SHEET ═══ -->
+<div class="overlay" id="sheetOverlay" onclick="window._kachunk.closeSheet()"></div>
+<div class="action-sheet" id="actionSheet">
+  <div class="handle"></div>
+  <div class="sheet-title" id="sheetTitle">—</div>
+  <button class="sheet-btn" onclick="window._kachunk.playSelectedChunk()">
+    <div class="sheet-icon play">▶</div> Play
+  </button>
+  <button class="sheet-btn" onclick="window._kachunk.editSelectedChunk()">
+    <div class="sheet-icon edit">✎</div> Edit
+  </button>
+  <button class="sheet-btn" onclick="window._kachunk.scheduleSelectedChunk()">
+    <div class="sheet-icon schedule">🕐</div> Schedule
+  </button>
+  <button class="sheet-btn danger" onclick="window._kachunk.deleteSelectedChunk()">
+    <div class="sheet-icon delete">✕</div> Delete
+  </button>
+</div>
+
+<!-- ═══ COMPLETION OVERLAY ═══ -->
+<div class="completion-overlay" id="completionOverlay">
+  <div class="completion-emoji">🎉</div>
+  <div class="completion-text">All Done!</div>
+  <div class="completion-sub" id="completionSub">Great work!</div>
+  <button class="completion-btn" onclick="window._kachunk.closeCompletion()">Done</button>
+</div>
+
+<!-- ═══ CONFIRM DIALOG ═══ -->
+<div class="confirm-dialog" id="confirmDialog">
+  <div class="confirm-box">
+    <h3>Delete Chunk?</h3>
+    <p id="confirmMsg">This can't be undone.</p>
+    <div class="confirm-actions">
+      <button class="confirm-cancel" onclick="window._kachunk.closeConfirm()">Cancel</button>
+      <button class="confirm-delete" id="confirmOk" onclick="window._kachunk.executeConfirm()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TOAST ═══ -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══ AUDIO SETTINGS PANEL ═══ -->
+<div class="audio-settings-overlay" id="audioSettingsOverlay" onclick="window._kachunk.closeAudioSettings()"></div>
+<div class="audio-settings-panel" id="audioSettingsPanel">
+  <div class="handle"></div>
+  <div class="panel-title">🎵 Audio Settings</div>
+  <span class="sound-picker-label">Default Alarm Sound</span>
+  <div class="sound-picker" id="settingsAlarmPicker"></div>
+  <span class="sound-picker-label">Background Audio</span>
+  <div class="sound-picker" id="settingsBgPicker"></div>
+  <div class="volume-section">
+    <span class="sound-picker-label">Volume</span>
+    <div class="volume-row">
+      <span class="volume-icon">🔈</span>
+      <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="75" oninput="window._kachunk.onVolumeChange(this.value)">
+      <span class="volume-pct" id="volumePct">75%</span>
+    </div>
+  </div>
+  <div>
+    <div class="setting-toggle-row">
+      <div>
+        <div class="toggle-label">Voice Announcements</div>
+        <div class="toggle-sub">Announce step names aloud</div>
+      </div>
+      <button class="toggle-switch" id="voiceToggle" onclick="window._kachunk.toggleSettingSwitch('voice', this)"></button>
+    </div>
+    <div class="setting-toggle-row">
+      <div>
+        <div class="toggle-label">Play/Pause Sounds</div>
+        <div class="toggle-sub">Click, pause &amp; whoosh effects</div>
+      </div>
+      <button class="toggle-switch" id="sfxToggle" onclick="window._kachunk.toggleSettingSwitch('sfx', this)"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PLAYER BG AUDIO PICKER ═══ -->
+<div class="audio-settings-overlay" id="bgPickerOverlay" onclick="window._kachunk.closeBgAudioPicker()"></div>
+<div class="player-bg-picker" id="playerBgPicker">
+  <div class="handle"></div>
+  <div class="picker-title">Background Audio</div>
+  <div class="sound-picker" id="playerBgPickerPills"></div>
+</div>
+
+<!-- ═══ STEP SOUND DROPDOWN ═══ -->
+<div class="step-sound-dropdown" id="stepSoundDropdown"></div>
+
+<!-- ═══ CHUNK PICKER MODAL ═══ -->
+<div class="chunk-picker-overlay" id="chunkPickerOverlay" onclick="window._kachunk.closeChunkPicker()"></div>
+<div class="chunk-picker" id="chunkPicker">
+  <div class="handle"></div>
+  <div class="chunk-picker-title">Add a Chunk</div>
+  <div id="chunkPickerList"></div>
+</div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

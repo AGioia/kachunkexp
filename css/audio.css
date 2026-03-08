@@ -1,0 +1,239 @@
+/* ═══ Audio Settings Panel ═══ */
+.audio-settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+}
+
+.audio-settings-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.audio-settings-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--card);
+  border-radius: 20px 20px 0 0;
+  padding: 8px 20px calc(20px + var(--safe-bottom));
+  z-index: 101;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+  max-height: 85vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.audio-settings-panel.show {
+  transform: translateY(0);
+}
+
+.audio-settings-panel .handle {
+  width: 36px;
+  height: 5px;
+  background: var(--text-faint);
+  border-radius: 3px;
+  margin: 8px auto 16px;
+}
+
+.audio-settings-panel .panel-title {
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 20px;
+  color: var(--text);
+}
+
+/* ═══ Sound Picker Pills ═══ */
+.sound-picker-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.sound-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.sound-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 2px solid rgba(0,0,0,0.08);
+  background: var(--bg);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.sound-pill:active {
+  transform: scale(0.96);
+}
+
+.sound-pill.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.sound-pill .pill-icon {
+  font-size: 15px;
+}
+
+.sound-pill .pill-preview {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.08);
+  color: var(--text-light);
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.sound-pill.selected .pill-preview {
+  background: rgba(255,255,255,0.25);
+  color: white;
+}
+
+.sound-pill .pill-preview:active {
+  background: rgba(0,0,0,0.15);
+}
+
+/* ═══ Volume Slider ═══ */
+.volume-section {
+  margin-bottom: 20px;
+}
+
+.volume-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.volume-icon {
+  font-size: 20px;
+  color: var(--text-light);
+  flex-shrink: 0;
+}
+
+.volume-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(0,0,0,0.08);
+  outline: none;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(212,136,58,0.3);
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 6px rgba(212,136,58,0.3);
+}
+
+.volume-pct {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-light);
+  width: 36px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ═══ Toggle Switch ═══ */
+.setting-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+
+.setting-toggle-row:last-child {
+  border-bottom: none;
+}
+
+.toggle-label {
+  font-size: 16px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.toggle-sub {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 2px;
+}
+
+.toggle-switch {
+  width: 48px;
+  height: 28px;
+  border-radius: 14px;
+  border: none;
+  background: rgba(0,0,0,0.12);
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.toggle-switch.on {
+  background: var(--accent);
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: white;
+  top: 3px;
+  left: 3px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.toggle-switch.on::after {
+  transform: translateX(20px);
+}

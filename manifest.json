@@ -1,0 +1,14 @@
+{
+  "name": "KaChunk",
+  "short_name": "KaChunk",
+  "description": "Your task player — build routines, press play",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FDF6EC",
+  "theme_color": "#FDF6EC",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icons/icon-192.svg", "sizes": "192x192", "type": "image/svg+xml" },
+    { "src": "icons/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml" }
+  ]
+}
