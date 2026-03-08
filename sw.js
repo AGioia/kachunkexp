@@ -1,27 +1,29 @@
-const CACHE_NAME = 'kachunk-v2';
+const CACHE_NAME = 'kachunk-v3';
+
+// Use relative paths so the SW works on any base path (GitHub Pages /kachunk/, custom domain /, etc.)
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/css/variables.css',
-  '/css/base.css',
-  '/css/components.css',
-  '/css/player.css',
-  '/css/sheets.css',
-  '/css/audio.css',
-  '/js/app.js',
-  '/js/store.js',
-  '/js/identity.js',
-  '/js/router.js',
-  '/js/audio.js',
-  '/js/audio-settings.js',
-  '/js/ui.js',
-  '/js/home.js',
-  '/js/editor.js',
-  '/js/player.js',
-  '/js/schedule.js',
-  '/icons/icon-192.svg',
-  '/icons/icon-512.svg'
+  './',
+  './index.html',
+  './manifest.json',
+  './css/variables.css',
+  './css/base.css',
+  './css/components.css',
+  './css/player.css',
+  './css/sheets.css',
+  './css/audio.css',
+  './js/app.js',
+  './js/store.js',
+  './js/identity.js',
+  './js/router.js',
+  './js/audio.js',
+  './js/audio-settings.js',
+  './js/ui.js',
+  './js/home.js',
+  './js/editor.js',
+  './js/player.js',
+  './js/schedule.js',
+  './icons/icon-192.svg',
+  './icons/icon-512.svg'
 ];
 
 self.addEventListener('install', event => {
