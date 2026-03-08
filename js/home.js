@@ -63,7 +63,7 @@ export function renderHome() {
               }
             </div>
           </button>
-          <div class="card-info" ${isActive ? `onclick="window._kachunk.openActivePlayer('${c.id}')"` : ''}>
+          <div class="card-info" ${isActive ? `onclick="window._kachunk.openActivePlayer('${c.id}')"` : `onclick="window._kachunk.toggleChunkPlay('${c.id}')"`}>
             <div class="card-name">${esc(c.name || 'Untitled')}${hasSubs ? '<span class="card-has-subchunks"> &#x27C1;</span>' : ''}</div>
             <div class="card-meta">
               <span>${stepCount} step${stepCount !== 1 ? 's' : ''}</span>
@@ -160,25 +160,32 @@ export function toggleChunkPlay(chunkId) {
   const existing = sessions.find(s => s.chunkId === chunkId);
 
   if (existing) {
-    // Toggle play/pause on existing session
     if (existing.status === 'playing') {
-      updateSession(existing.id, { status: 'paused' });
-      playUiSound('clickPause');
+      // Already playing — open the full player
+      openActivePlayer(chunkId);
+      return;
     } else {
+      // Paused/overtime — resume and open player
       updateSession(existing.id, { status: 'playing' });
       playUiSound('clickPlay');
       vibrateDevice([10, 20, 40]);
+      renderHome();
+      openActivePlayer(chunkId);
+      return;
     }
-  } else {
-    // Start new session
-    const session = createSession(chunkId);
-    if (!session) return;
-    updateSession(session.id, { status: 'playing' });
-    // Precursor KaChunk sound — lighter, shorter
-    playUiSound('clickPlay');
-    vibrateDevice([10, 20, 40]);
   }
+
+  // No session — start new and open player
+  const session = createSession(chunkId);
+  if (!session) return;
+  updateSession(session.id, { status: 'playing' });
+  playUiSound('clickPlay');
+  vibrateDevice([10, 20, 40]);
   renderHome();
+
+  // Open the full player
+  const startPlayer = window._kachunk._startPlayer;
+  if (startPlayer) startPlayer(chunkId);
 }
 
 export function openActivePlayer(chunkId) {
