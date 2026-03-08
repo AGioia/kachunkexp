@@ -100,27 +100,39 @@ function wireSwipeHandlers() {
     const content = card.querySelector('.card-content');
     if (!content) return;
 
+    let isSwiping = false;
+
     content.addEventListener('touchstart', (e) => {
+      isSwiping = false;
       swipeState.cardEl = card;
       swipeState.startX = e.touches[0].clientX;
       swipeState.currentX = swipeState.startX;
-      content.style.transition = 'none';
     }, { passive: true });
 
     content.addEventListener('touchmove', (e) => {
       if (!swipeState.cardEl) return;
       swipeState.currentX = e.touches[0].clientX;
       const dx = swipeState.currentX - swipeState.startX;
-      if (dx < 0) {
+      if (Math.abs(dx) > 10) {
+        isSwiping = true;
+        content.style.transition = 'none';
+      }
+      if (isSwiping && dx < 0) {
         const offset = Math.max(dx, -100);
         content.style.transform = `translateX(${offset}px)`;
-        // Show delete bg as soon as swipe starts
         if (dx < -20) card.classList.add('swiped');
       }
     }, { passive: true });
 
     content.addEventListener('touchend', () => {
       if (!swipeState.cardEl) return;
+
+      if (!isSwiping) {
+        // It was a tap, not a swipe — don't interfere with click handlers
+        swipeState.cardEl = null;
+        return;
+      }
+
       const dx = swipeState.currentX - swipeState.startX;
       content.style.transition = 'transform 0.25s ease';
 
@@ -135,7 +147,6 @@ function wireSwipeHandlers() {
           }
         }, 4000);
 
-        // Wire the delete background click
         const deleteBg = card.querySelector('.card-delete-bg');
         deleteBg.onclick = () => {
           const chunks = loadChunks();
