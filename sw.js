@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kachunk-v1';
+const CACHE_NAME = 'kachunk-v2';
 const ASSETS = [
   '/',
   '/index.html',

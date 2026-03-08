@@ -50,13 +50,214 @@
   padding-bottom: calc(20px + var(--safe-bottom));
 }
 
+/* ═══ Breadcrumb Bar ═══ */
+.breadcrumb-bar {
+  padding: 0 20px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.breadcrumb-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--player-surface);
+  border: none;
+  border-radius: 16px;
+  padding: 5px 12px 5px 14px;
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.breadcrumb-current {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--player-text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.3px;
+}
+
+.breadcrumb-chevron {
+  width: 12px;
+  height: 12px;
+  color: var(--player-text-3);
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+
+.breadcrumb-bar.expanded .breadcrumb-chevron {
+  transform: rotate(180deg);
+}
+
+.breadcrumb-expanded {
+  position: absolute;
+  top: 100%;
+  left: 20px;
+  right: 20px;
+  background: var(--player-surface);
+  border-radius: 12px;
+  padding: 0;
+  z-index: 10;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease, padding 0.25s ease;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+
+.breadcrumb-bar.expanded .breadcrumb-expanded {
+  max-height: 200px;
+  padding: 8px;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  width: 100%;
+  cursor: pointer;
+  border-radius: 8px;
+  font-family: inherit;
+}
+
+.breadcrumb-item:active {
+  background: rgba(240, 235, 227, 0.05);
+}
+
+.breadcrumb-item .bc-depth {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--player-surface-2);
+  color: var(--player-text-3);
+}
+
+.breadcrumb-item.bc-active .bc-depth {
+  background: var(--accent);
+  color: white;
+}
+
+.breadcrumb-item .bc-name {
+  font-size: 13px;
+  color: var(--player-text-3);
+  font-weight: 400;
+}
+
+.breadcrumb-item.bc-active .bc-name {
+  color: var(--player-text);
+  font-weight: 500;
+}
+
+/* ═══ Player Main Area (sidebar + chrono) ═══ */
+.player-main-area {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 0 0 0;
+}
+
+/* ═══ Dot Sidebar (Minimap) ═══ */
+.dot-sidebar {
+  width: 24px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+  max-height: 260px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dot-sidebar::-webkit-scrollbar {
+  display: none;
+}
+
+.dot-sidebar-track {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+/* Individual dot */
+.dot-step {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--player-surface-2);
+  flex-shrink: 0;
+  position: relative;
+  transition: background 0.2s, transform 0.15s;
+  cursor: pointer;
+}
+
+/* Depth indentation */
+.dot-step.depth-1 { margin-left: 4px; }
+.dot-step.depth-2 { margin-left: 8px; }
+.dot-step.depth-3 { margin-left: 12px; }
+
+/* Completed dot */
+.dot-step.completed {
+  background: var(--success);
+  width: 6px;
+  height: 6px;
+}
+
+/* Current dot */
+.dot-step.current {
+  background: var(--accent);
+  width: 10px;
+  height: 10px;
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+
+/* Overtime dot */
+.dot-step.overtime {
+  background: var(--overtime);
+  box-shadow: 0 0 6px var(--overtime-glow);
+}
+
+/* Pac-man timer overlay (for live/active dots) */
+.dot-step .dot-timer {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.dot-step .dot-timer svg {
+  width: 100%;
+  height: 100%;
+}
+
+.dot-timer-fill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 4;
+  transition: stroke-dashoffset 1s linear;
+}
+
 /* ═══ Chronometer Face ═══ */
 .chrono-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px 0 12px;
-  flex-shrink: 0;
+  padding: 12px 0 8px;
+  flex: 1;
 }
 
 .chrono-face {
@@ -77,6 +278,38 @@
   stroke-width: 3;
 }
 
+/* Master ring — outermost, very subtle */
+.ring-master-track {
+  fill: none;
+  stroke: rgba(240, 235, 227, 0.03);
+  stroke-width: 2;
+}
+
+.ring-master {
+  fill: none;
+  stroke: rgba(240, 235, 227, 0.12);
+  stroke-width: 2;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+
+/* Sub-chunk ring — middle, subtle accent */
+.ring-subchunk-track {
+  fill: none;
+  stroke: rgba(240, 235, 227, 0.04);
+  stroke-width: 2;
+}
+
+.ring-subchunk {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.35;
+  transition: stroke-dashoffset 0.5s linear;
+}
+
+/* Current step ring — prominent */
 .ring-progress {
   fill: none;
   stroke: var(--accent);

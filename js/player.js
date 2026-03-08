@@ -26,10 +26,15 @@ let isOvertime = false;
 let overtimeSeconds = 0;
 let overtimePulseInterval = null;
 
-const CHRONO_RADIUS = 115;
-const CHRONO_CIRCUMFERENCE = 2 * Math.PI * CHRONO_RADIUS; // ~722.6
-const OVERTIME_RADIUS = 108;
-const OVERTIME_CIRCUMFERENCE = 2 * Math.PI * OVERTIME_RADIUS; // ~678.6
+// Ring radii must match the SVG
+const MASTER_RADIUS = 122;
+const MASTER_CIRC = 2 * Math.PI * MASTER_RADIUS;   // ~766.5
+const SUBCHUNK_RADIUS = 115;
+const SUBCHUNK_CIRC = 2 * Math.PI * SUBCHUNK_RADIUS; // ~722.6
+const STEP_RADIUS = 108;
+const STEP_CIRC = 2 * Math.PI * STEP_RADIUS;        // ~678.6
+const OVERTIME_RADIUS = 101;
+const OVERTIME_CIRC = 2 * Math.PI * OVERTIME_RADIUS; // ~634.6
 
 // ─── Chronometer Tick Marks ───
 
@@ -86,10 +91,14 @@ export function startPlayer(id) {
   clearInterval(overtimePulseInterval);
 
   renderChronoTicks();
+  renderDotSidebar();
   loadPlayerStep();
   renderPlayerSteps();
 
   document.getElementById('playerTitle').textContent = playerChunk.name;
+  
+  // Reset breadcrumb
+  document.getElementById('breadcrumbBar').classList.remove('expanded');
   updatePlayPauseIcon(false);
 
   const s = loadAudioSettings();
@@ -137,6 +146,7 @@ function loadPlayerStep() {
 
   updateTimerDisplay();
   updateChronoProgress();
+  updateBreadcrumb();
   renderPlayerSteps();
 }
 
@@ -154,30 +164,61 @@ function updateTimerDisplay() {
 }
 
 function updateChronoProgress() {
-  const ring = document.getElementById('ringProgress');
-  if (!ring) return;
+  const stepRing = document.getElementById('ringProgress');
+  if (!stepRing) return;
 
+  // ── Current step ring (innermost, prominent) ──
   if (isOvertime) {
-    // Full progress ring when in overtime
-    ring.style.strokeDashoffset = '0';
-
-    // Overtime ring grows
+    stepRing.style.strokeDashoffset = '0';
     const overtimeRing = document.getElementById('ringOvertime');
     overtimeRing.classList.add('active');
-    // Cap overtime visual at 5 minutes (300 seconds)
     const pct = Math.min(overtimeSeconds / 300, 1);
-    const offset = OVERTIME_CIRCUMFERENCE * (1 - pct);
-    overtimeRing.style.strokeDashoffset = offset;
-
-    // Color ticks based on overtime progress
+    overtimeRing.style.strokeDashoffset = OVERTIME_CIRC * (1 - pct);
     updateOvertimeTicks(pct);
   } else {
     const pct = playerTotalSeconds > 0
       ? (playerTotalSeconds - playerSecondsLeft) / playerTotalSeconds
       : 0;
-    const offset = CHRONO_CIRCUMFERENCE * (1 - pct);
-    ring.style.strokeDashoffset = offset;
+    stepRing.style.strokeDashoffset = STEP_CIRC * (1 - pct);
   }
+
+  // ── Master ring (outermost, faint) — total chunk progress ──
+  const masterRing = document.getElementById('ringMaster');
+  if (masterRing && playerFlatSteps.length > 0) {
+    const totalChunkSeconds = playerFlatSteps.reduce((s, st) => s + Math.round((parseFloat(st.minutes) || 1) * 60), 0);
+    let elapsed = 0;
+    for (let i = 0; i < playerStepIdx; i++) {
+      elapsed += Math.round((parseFloat(playerFlatSteps[i].minutes) || 1) * 60);
+    }
+    elapsed += (playerTotalSeconds - playerSecondsLeft) + (isOvertime ? overtimeSeconds : 0);
+    const masterPct = Math.min(elapsed / totalChunkSeconds, 1);
+    masterRing.style.strokeDashoffset = MASTER_CIRC * (1 - masterPct);
+  }
+
+  // ── Sub-chunk ring (middle) — visible when inside a sub-chunk ──
+  const subRing = document.getElementById('ringSubchunk');
+  const subTrack = document.getElementById('ringSubchunkTrack');
+  const currentStep = playerFlatSteps[playerStepIdx];
+  if (subRing && subTrack && currentStep && currentStep.depth > 0 && currentStep.sourceChunkId) {
+    subRing.style.opacity = '1';
+    subTrack.style.opacity = '1';
+
+    // Find all steps in this sub-chunk
+    const subChunkId = currentStep.sourceChunkId;
+    const subSteps = playerFlatSteps.filter(s => s.sourceChunkId === subChunkId);
+    const subIdx = subSteps.indexOf(currentStep);
+    const totalSubSteps = subSteps.length;
+    if (totalSubSteps > 0) {
+      const subPct = (subIdx + (isOvertime ? 1 : (playerTotalSeconds - playerSecondsLeft) / playerTotalSeconds)) / totalSubSteps;
+      subRing.style.strokeDashoffset = SUBCHUNK_CIRC * (1 - Math.min(subPct, 1));
+    }
+  } else if (subRing && subTrack) {
+    subRing.style.opacity = '0';
+    subTrack.style.opacity = '0';
+  }
+
+  // ── Update dot sidebar ──
+  updateDotSidebar();
 }
 
 function updateOvertimeTicks(pct) {
@@ -227,6 +268,101 @@ function renderPlayerSteps() {
       </div>
     `;
   }).join('');
+}
+
+// ─── Breadcrumb ───
+
+function updateBreadcrumb() {
+  const currentStep = playerFlatSteps[playerStepIdx];
+  const bar = document.getElementById('breadcrumbBar');
+  const currentEl = document.getElementById('breadcrumbCurrent');
+  const expandedEl = document.getElementById('breadcrumbExpanded');
+
+  if (!currentStep || !playerChunk) return;
+
+  // Build breadcrumb path
+  const crumbs = [{ name: playerChunk.name, depth: 0 }];
+  if (currentStep.sourceChunk) {
+    crumbs.push({ name: currentStep.sourceChunk, depth: currentStep.depth });
+  }
+
+  // Collapsed: show current context
+  if (crumbs.length <= 1) {
+    currentEl.textContent = crumbs[0].name;
+  } else {
+    currentEl.textContent = crumbs.map(c => c.name).join(' › ');
+  }
+
+  // Expanded: list of tappable ancestors
+  expandedEl.innerHTML = crumbs.map((c, i) => {
+    const isActive = i === crumbs.length - 1;
+    return `<button class="breadcrumb-item ${isActive ? 'bc-active' : ''}" onclick="window._kachunk.closeBreadcrumb()">
+      <span class="bc-depth">${i}</span>
+      <span class="bc-name">${esc(c.name)}</span>
+    </button>`;
+  }).join('');
+}
+
+export function toggleBreadcrumb() {
+  document.getElementById('breadcrumbBar').classList.toggle('expanded');
+}
+
+export function closeBreadcrumb() {
+  document.getElementById('breadcrumbBar').classList.remove('expanded');
+}
+
+// ─── Dot Sidebar (Minimap) ───
+
+function renderDotSidebar() {
+  const track = document.getElementById('dotSidebarTrack');
+  if (!track || playerFlatSteps.length === 0) return;
+
+  track.innerHTML = playerFlatSteps.map((step, i) => {
+    const depthClass = step.depth > 0 ? ` depth-${Math.min(step.depth, 3)}` : '';
+    return `<div class="dot-step${depthClass}" data-dot-idx="${i}" onclick="window._kachunk.scrollToStep(${i})">
+      <div class="dot-timer"><svg viewBox="0 0 10 10"><circle class="dot-timer-fill" cx="5" cy="5" r="3" stroke-dasharray="${2 * Math.PI * 3}" stroke-dashoffset="${2 * Math.PI * 3}" transform="rotate(-90 5 5)"/></svg></div>
+    </div>`;
+  }).join('');
+}
+
+function updateDotSidebar() {
+  const dots = document.querySelectorAll('.dot-step');
+  if (dots.length === 0) return;
+
+  dots.forEach((dot, i) => {
+    dot.classList.remove('completed', 'current', 'overtime');
+    const timerFill = dot.querySelector('.dot-timer-fill');
+
+    if (i < playerStepIdx) {
+      dot.classList.add('completed');
+      if (timerFill) timerFill.style.strokeDashoffset = '0';
+    } else if (i === playerStepIdx) {
+      dot.classList.add('current');
+      if (isOvertime) dot.classList.add('overtime');
+      // Pac-man fill based on step progress
+      if (timerFill) {
+        const circ = 2 * Math.PI * 3;
+        const pct = isOvertime ? 1 : (playerTotalSeconds > 0 ? (playerTotalSeconds - playerSecondsLeft) / playerTotalSeconds : 0);
+        timerFill.style.strokeDashoffset = circ * (1 - pct);
+      }
+    } else {
+      if (timerFill) timerFill.style.strokeDashoffset = `${2 * Math.PI * 3}`;
+    }
+  });
+
+  // Auto-scroll current dot into view
+  const currentDot = document.querySelector('.dot-step.current');
+  if (currentDot) {
+    currentDot.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
+export function scrollToStep(idx) {
+  // Scroll the step list to show this step
+  const stepItems = document.querySelectorAll('.player-step-item');
+  if (stepItems[idx]) {
+    stepItems[idx].scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
 }
 
 // ─── Play / Pause ───
