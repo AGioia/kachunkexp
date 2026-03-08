@@ -140,7 +140,7 @@ function loadPlayerStep() {
   face.className = 'chrono-face';
   const overtimeRing = document.getElementById('ringOvertime');
   overtimeRing.classList.remove('active');
-  overtimeRing.style.strokeDashoffset = OVERTIME_CIRCUMFERENCE;
+  overtimeRing.style.strokeDashoffset = OVERTIME_CIRC;
   resetOvertimeTicks();
 
   const kb = document.getElementById('kachunkBtn');
