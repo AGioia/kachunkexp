@@ -20,9 +20,9 @@ export function renderHome() {
   if (chunks.length === 0) {
     list.innerHTML = `
       <div class="empty-state">
-        <div class="disc-icon"></div>
+        <div class="empty-chrono"></div>
         <h2>No Chunks Yet</h2>
-        <p>Create your first chunk — a sequence of timed steps to keep you on track.</p>
+        <p>Create your first chunk — a sequence of timed steps to guide your rhythm.</p>
       </div>
     `;
     return;
@@ -35,16 +35,24 @@ export function renderHome() {
     const schedText = getScheduleText(c.schedule);
     return `
       <div class="chunk-card" onclick="window._kachunk.openSheet('${c.id}')">
-        <div class="cd-thumb"></div>
+        <div class="chrono-thumb">
+          <svg viewBox="0 0 44 44">
+            <circle fill="none" stroke="rgba(26,22,19,0.04)" stroke-width="2" cx="22" cy="22" r="19"/>
+            <circle fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" cx="22" cy="22" r="19"
+              stroke-dasharray="119.4" stroke-dashoffset="${119.4 * (1 - Math.min(stepCount / 10, 1))}"
+              transform="rotate(-90 22 22)"/>
+          </svg>
+        </div>
         <div class="card-info">
-          <div class="card-name">${esc(c.name || 'Untitled')}${hasSubs ? '<span class="card-has-subchunks">🔗</span>' : ''}</div>
+          <div class="card-name">${esc(c.name || 'Untitled')}${hasSubs ? '<span class="card-has-subchunks">⟁</span>' : ''}</div>
           <div class="card-meta">
             <span>${stepCount} step${stepCount !== 1 ? 's' : ''}</span>
+            <span class="dot">·</span>
             <span>${formatDuration(totalMin)}</span>
           </div>
-          ${schedText ? `<div class="card-schedule">${schedText}</div>` : ''}
+          ${schedText ? `<div class="card-schedule"><span class="dot" style="width:4px;height:4px;border-radius:50%;background:var(--accent);display:inline-block"></span> ${schedText}</div>` : ''}
         </div>
-        <div class="card-arrow">›</div>
+        <svg class="card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
       </div>
     `;
   }).join('');

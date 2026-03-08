@@ -1,62 +1,78 @@
 /* ═══ FAB ═══ */
 .fab {
   position: fixed;
-  bottom: calc(24px + var(--safe-bottom));
+  bottom: calc(28px + var(--safe-bottom));
   right: 20px;
-  width: 64px;
-  height: 64px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  background: var(--accent);
-  color: white;
+  background: var(--text);
+  color: var(--bg);
   border: none;
-  font-size: 34px;
+  font-size: 24px;
   font-weight: 300;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px rgba(212,136,58,0.4);
+  box-shadow: 0 4px 16px rgba(26, 22, 19, 0.2);
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.1s;
   z-index: 50;
-  -webkit-tap-highlight-color: rgba(212,136,58,0.3);
   touch-action: manipulation;
 }
 
 .fab:active {
   transform: scale(0.92);
-  box-shadow: 0 2px 8px rgba(212,136,58,0.3);
+}
+
+.fab svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
 }
 
 /* ═══ Chunk Cards ═══ */
 .chunk-card {
   background: var(--card);
-  border-radius: 16px;
-  padding: 16px 18px;
-  margin-bottom: 12px;
-  box-shadow: 0 2px 8px var(--shadow);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 6px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
   cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: transform 0.1s;
   display: flex;
   align-items: center;
   gap: 14px;
 }
 
 .chunk-card:active {
-  transform: scale(0.98);
-  box-shadow: 0 1px 4px var(--shadow);
+  transform: scale(0.985);
 }
 
-.chunk-card .cd-thumb {
-  width: 52px;
-  height: 52px;
+/* Chronometer thumbnail */
+.chrono-thumb {
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
+  position: relative;
   flex-shrink: 0;
-  background: radial-gradient(circle at 50% 50%, var(--bg) 12%, transparent 13%),
-              radial-gradient(circle at 50% 50%, var(--disc-outer) 14%, transparent 15%),
-              conic-gradient(from 0deg, rgba(255,255,255,0.03) 0%, transparent 10%, rgba(255,255,255,0.03) 20%, transparent 30%, rgba(255,255,255,0.03) 40%, transparent 50%, rgba(255,255,255,0.03) 60%, transparent 70%, rgba(255,255,255,0.03) 80%, transparent 90%),
-              radial-gradient(circle at 50% 50%, transparent 38%, var(--accent) 39%, var(--accent) 52%, transparent 53%),
-              radial-gradient(circle at 50% 50%, var(--disc-outer) 0%, var(--disc-mid) 100%);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  background: var(--surface);
+  border: 1.5px solid rgba(26, 22, 19, 0.06);
+}
+
+.chrono-thumb::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translate(-50%, -50%);
 }
 
 .chunk-card .card-info {
@@ -65,39 +81,47 @@
 }
 
 .chunk-card .card-name {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 600;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.1px;
 }
 
 .chunk-card .card-meta {
-  font-size: 13px;
-  color: var(--text-light);
+  font-size: 12px;
+  color: var(--text-3);
+  display: flex;
+  gap: 6px;
 }
 
-.chunk-card .card-meta span {
-  margin-right: 12px;
+.chunk-card .card-meta .dot {
+  color: rgba(26, 22, 19, 0.15);
 }
 
 .chunk-card .card-schedule {
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
   color: var(--accent);
   margin-top: 3px;
 }
 
 .chunk-card .card-arrow {
-  color: var(--text-faint);
-  font-size: 18px;
+  width: 16px;
+  height: 16px;
+  color: var(--text-3);
   flex-shrink: 0;
+  opacity: 0.4;
 }
 
 .card-has-subchunks {
-  font-size: 11px;
-  color: var(--accent);
-  opacity: 0.7;
+  font-size: 10px;
+  color: var(--text-3);
   margin-left: 4px;
 }
 
@@ -107,11 +131,11 @@
 }
 
 .form-label {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--text-light);
+  letter-spacing: 1.5px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--text-3);
   margin-bottom: 8px;
   display: block;
 }
@@ -119,22 +143,25 @@
 .form-input {
   width: 100%;
   padding: 14px 16px;
-  border: 2px solid rgba(0,0,0,0.06);
-  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
   font-size: 17px;
   font-family: inherit;
+  font-weight: 500;
   color: var(--text);
   background: var(--card);
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.15s;
+  letter-spacing: -0.2px;
 }
 
 .form-input:focus {
-  border-color: var(--accent);
+  border-color: var(--border-focus);
 }
 
 .form-input::placeholder {
-  color: var(--text-faint);
+  color: var(--text-3);
+  font-weight: 400;
 }
 
 /* ═══ Step Editor ═══ */
@@ -152,21 +179,21 @@
 .step-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   background: var(--card);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   padding: 10px 12px;
-  margin-bottom: 8px;
-  box-shadow: 0 1px 4px var(--shadow);
+  margin-bottom: 4px;
+  border: 1px solid var(--border);
 }
 
 .step-item .step-number {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  background: var(--accent);
-  color: white;
-  font-size: 13px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 11px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -179,31 +206,32 @@
   min-width: 0;
   border: none;
   background: transparent;
-  font-size: 16px;
+  font-size: 15px;
   font-family: inherit;
   color: var(--text);
   outline: none;
-  padding: 6px 4px;
+  padding: 4px 0;
 }
 
 .step-item input[type="text"]::placeholder {
-  color: var(--text-faint);
+  color: var(--text-3);
 }
 
 .step-item .step-duration {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   flex-shrink: 0;
 }
 
 .step-item .step-duration input {
-  width: 48px;
-  border: 2px solid rgba(0,0,0,0.06);
-  border-radius: 8px;
-  padding: 6px 4px;
-  font-size: 15px;
-  font-family: inherit;
+  width: 40px;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
   text-align: center;
   color: var(--text);
   background: var(--bg);
@@ -211,12 +239,13 @@
 }
 
 .step-item .step-duration input:focus {
-  border-color: var(--accent);
+  border-color: var(--border-focus);
 }
 
 .step-item .step-duration span {
-  font-size: 13px;
-  color: var(--text-light);
+  font-size: 11px;
+  color: var(--text-3);
+  font-weight: 500;
 }
 
 .step-reorder {
@@ -227,33 +256,29 @@
 }
 
 .step-reorder button, .step-delete {
-  width: 28px;
-  height: 22px;
+  width: 24px;
+  height: 20px;
   border: none;
   background: none;
-  color: var(--text-faint);
+  color: var(--text-3);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 12px;
   border-radius: 4px;
+  opacity: 0.5;
 }
 
 .step-reorder button:active, .step-delete:active {
-  background: rgba(0,0,0,0.05);
+  opacity: 1;
 }
 
 .step-delete {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   color: var(--danger);
-  font-size: 18px;
-  opacity: 0.6;
-}
-
-.step-delete:active {
-  opacity: 1;
+  font-size: 14px;
 }
 
 .add-step-btn {
@@ -262,21 +287,22 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
-  padding: 14px;
-  border: 2px dashed rgba(0,0,0,0.1);
-  border-radius: 12px;
+  padding: 13px;
+  border: 1.5px dashed rgba(26, 22, 19, 0.1);
+  border-radius: var(--radius-sm);
   background: none;
-  color: var(--accent);
-  font-size: 16px;
+  color: var(--text-2);
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   font-family: inherit;
   margin-top: 4px;
-  transition: background 0.15s;
+  transition: border-color 0.15s, color 0.15s;
 }
 
 .add-step-btn:active {
-  background: rgba(212,136,58,0.06);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .add-btns-row {
@@ -292,10 +318,9 @@
 
 /* ═══ Sub-chunk items ═══ */
 .step-item.sub-chunk-item {
-  background: #FFF8EE;
-  border: 1.5px solid rgba(212,136,58,0.18);
+  background: var(--accent-soft);
+  border-color: rgba(196, 75, 26, 0.12);
   cursor: pointer;
-  position: relative;
 }
 
 .sub-chunk-info {
@@ -305,7 +330,7 @@
 }
 
 .sub-chunk-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
   display: flex;
@@ -314,13 +339,13 @@
 }
 
 .sub-chunk-name .link-icon {
-  font-size: 14px;
-  opacity: 0.7;
+  font-size: 12px;
+  opacity: 0.6;
 }
 
 .sub-chunk-meta {
-  font-size: 12px;
-  color: var(--text-light);
+  font-size: 11px;
+  color: var(--text-3);
   margin-top: 2px;
 }
 
@@ -333,8 +358,8 @@
   max-height: 0;
   overflow: hidden;
   transition: max-height 0.3s ease, padding 0.3s ease;
-  background: rgba(0,0,0,0.02);
-  border-radius: 8px;
+  background: rgba(26, 22, 19, 0.02);
+  border-radius: 6px;
   margin-top: 0;
 }
 
@@ -345,16 +370,17 @@
 }
 
 .sub-chunk-preview-step {
-  font-size: 13px;
-  color: var(--text-light);
+  font-size: 12px;
+  color: var(--text-2);
   padding: 3px 0;
   display: flex;
   justify-content: space-between;
 }
 
 .sub-chunk-preview-step span:last-child {
-  color: var(--text-faint);
-  font-size: 12px;
+  color: var(--text-3);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
 }
 
 /* ═══ Save Button ═══ */
@@ -362,78 +388,75 @@
   width: 100%;
   padding: 16px;
   border: none;
-  border-radius: 14px;
-  background: var(--accent);
-  color: white;
-  font-size: 17px;
+  border-radius: var(--radius);
+  background: var(--text);
+  color: var(--bg);
+  font-size: 15px;
   font-weight: 600;
   font-family: inherit;
+  letter-spacing: 0.5px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(212,136,58,0.3);
   margin-top: 24px;
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: transform 0.1s;
 }
 
 .save-btn:active {
-  transform: scale(0.97);
-  box-shadow: 0 2px 6px rgba(212,136,58,0.2);
+  transform: scale(0.98);
 }
 
-/* ═══ Settings Gear ═══ */
+/* ═══ Settings Button ═══ */
 .settings-btn {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border: none;
   background: none;
-  color: var(--text-light);
-  font-size: 22px;
+  color: var(--text-3);
   cursor: pointer;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s, color 0.15s;
   flex-shrink: 0;
 }
 
+.settings-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
 .settings-btn:active {
-  background: rgba(0,0,0,0.06);
-  color: var(--accent);
+  color: var(--text-2);
 }
 
 /* ═══ Step Sound Picker ═══ */
 .step-sound-btn {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border: none;
-  background: rgba(0,0,0,0.04);
-  color: var(--text-faint);
-  font-size: 14px;
+  background: rgba(26, 22, 19, 0.03);
+  color: var(--text-3);
+  font-size: 12px;
   cursor: pointer;
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: all 0.15s;
 }
 
 .step-sound-btn.has-sound {
   color: var(--accent);
-  background: rgba(212,136,58,0.1);
-}
-
-.step-sound-btn:active {
-  background: rgba(0,0,0,0.08);
+  background: var(--accent-soft);
 }
 
 .step-sound-dropdown {
   position: fixed;
   z-index: 200;
   background: var(--card);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 8px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 20px rgba(26, 22, 19, 0.15);
+  border: 1px solid var(--border);
   min-width: 160px;
   opacity: 0;
   pointer-events: none;
@@ -458,12 +481,12 @@
   font-size: 14px;
   color: var(--text);
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-family: inherit;
 }
 
 .step-sound-option:active {
-  background: rgba(0,0,0,0.04);
+  background: var(--surface);
 }
 
 .step-sound-option.selected {
@@ -472,8 +495,8 @@
 }
 
 .step-sound-option .opt-icon {
-  font-size: 16px;
-  width: 24px;
+  font-size: 15px;
+  width: 22px;
   text-align: center;
 }
 
@@ -481,23 +504,19 @@
 .audio-override-section {
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid rgba(0,0,0,0.06);
+  border-top: 1px solid var(--border);
 }
 
 .audio-override-section .section-title {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--text-light);
+  letter-spacing: 1.5px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--text-3);
   margin-bottom: 12px;
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.audio-override-section .section-title .icon {
-  font-size: 16px;
 }
 
 /* ═══ Day Toggles (Schedule) ═══ */
@@ -509,23 +528,23 @@
 }
 
 .day-toggle {
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  border: 2px solid rgba(0,0,0,0.1);
+  border: 1.5px solid var(--border);
   background: var(--card);
-  color: var(--text-light);
-  font-size: 14px;
+  color: var(--text-3);
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
-  transition: all 0.2s;
+  transition: all 0.15s;
 }
 
 .day-toggle.selected {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: white;
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
 }
 
 /* ═══ Time Picker ═══ */
@@ -539,29 +558,28 @@
 
 .time-picker-wrap input[type="time"] {
   padding: 12px 16px;
-  border: 2px solid rgba(0,0,0,0.06);
-  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
   font-size: 20px;
-  font-family: inherit;
+  font-family: 'JetBrains Mono', monospace;
   color: var(--text);
   background: var(--card);
   outline: none;
 }
 
 .time-picker-wrap input[type="time"]:focus {
-  border-color: var(--accent);
+  border-color: var(--border-focus);
 }
 
 /* ═══ Schedule Summary ═══ */
 .schedule-summary {
   text-align: center;
-  font-size: 15px;
-  color: var(--text-light);
+  font-size: 14px;
+  color: var(--text-3);
   padding: 16px;
-  background: var(--card);
-  border-radius: 12px;
+  background: var(--surface);
+  border-radius: var(--radius);
   margin-bottom: 20px;
-  box-shadow: 0 1px 4px var(--shadow);
   min-height: 52px;
   display: flex;
   align-items: center;

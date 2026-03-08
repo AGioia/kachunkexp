@@ -2,7 +2,7 @@
 .audio-settings-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.35);
+  background: rgba(26, 22, 19, 0.3);
   z-index: 100;
   opacity: 0;
   pointer-events: none;
@@ -36,14 +36,14 @@
 
 .audio-settings-panel .handle {
   width: 36px;
-  height: 5px;
-  background: var(--text-faint);
-  border-radius: 3px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
   margin: 8px auto 16px;
 }
 
 .audio-settings-panel .panel-title {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
   text-align: center;
   margin-bottom: 20px;
@@ -52,11 +52,11 @@
 
 /* ═══ Sound Picker Pills ═══ */
 .sound-picker-label {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--text-light);
+  letter-spacing: 1.5px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--text-3);
   margin-bottom: 8px;
   display: block;
 }
@@ -64,21 +64,21 @@
 .sound-picker {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 20px;
 }
 
 .sound-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: 5px;
+  padding: 7px 12px;
   border-radius: 20px;
-  border: 2px solid rgba(0,0,0,0.08);
-  background: var(--bg);
-  font-size: 14px;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  font-size: 13px;
   font-weight: 500;
-  color: var(--text);
+  color: var(--text-2);
   cursor: pointer;
   font-family: inherit;
   transition: all 0.15s;
@@ -90,38 +90,9 @@
 }
 
 .sound-pill.selected {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: white;
-}
-
-.sound-pill .pill-icon {
-  font-size: 15px;
-}
-
-.sound-pill .pill-preview {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(0,0,0,0.08);
-  color: var(--text-light);
-  font-size: 10px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: background 0.15s;
-}
-
-.sound-pill.selected .pill-preview {
-  background: rgba(255,255,255,0.25);
-  color: white;
-}
-
-.sound-pill .pill-preview:active {
-  background: rgba(0,0,0,0.15);
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
 }
 
 /* ═══ Volume Slider ═══ */
@@ -136,8 +107,8 @@
 }
 
 .volume-icon {
-  font-size: 20px;
-  color: var(--text-light);
+  font-size: 18px;
+  color: var(--text-3);
   flex-shrink: 0;
 }
 
@@ -145,36 +116,36 @@
   flex: 1;
   -webkit-appearance: none;
   appearance: none;
-  height: 6px;
-  border-radius: 3px;
-  background: rgba(0,0,0,0.08);
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
   outline: none;
 }
 
 .volume-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--text);
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(212,136,58,0.3);
+  box-shadow: 0 1px 4px rgba(26, 22, 19, 0.15);
 }
 
 .volume-slider::-moz-range-thumb {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--text);
   cursor: pointer;
   border: none;
-  box-shadow: 0 2px 6px rgba(212,136,58,0.3);
 }
 
 .volume-pct {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-light);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
   width: 36px;
   text-align: right;
   flex-shrink: 0;
@@ -186,7 +157,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 0;
-  border-bottom: 1px solid rgba(0,0,0,0.04);
+  border-bottom: 1px solid var(--border);
 }
 
 .setting-toggle-row:last-child {
@@ -194,23 +165,23 @@
 }
 
 .toggle-label {
-  font-size: 16px;
+  font-size: 15px;
   color: var(--text);
   font-weight: 500;
 }
 
 .toggle-sub {
   font-size: 12px;
-  color: var(--text-light);
+  color: var(--text-3);
   margin-top: 2px;
 }
 
 .toggle-switch {
-  width: 48px;
-  height: 28px;
-  border-radius: 14px;
+  width: 44px;
+  height: 26px;
+  border-radius: 13px;
   border: none;
-  background: rgba(0,0,0,0.12);
+  background: var(--surface);
   cursor: pointer;
   position: relative;
   transition: background 0.2s;
@@ -218,22 +189,22 @@
 }
 
 .toggle-switch.on {
-  background: var(--accent);
+  background: var(--text);
 }
 
 .toggle-switch::after {
   content: '';
   position: absolute;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: white;
   top: 3px;
   left: 3px;
   transition: transform 0.2s;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  box-shadow: 0 1px 3px rgba(26, 22, 19, 0.15);
 }
 
 .toggle-switch.on::after {
-  transform: translateX(20px);
+  transform: translateX(18px);
 }

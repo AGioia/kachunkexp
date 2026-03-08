@@ -1,25 +1,37 @@
 /* ═══ Player Screen ═══ */
 .player-screen {
-  background: linear-gradient(180deg, #1A0E08 0%, #2C1810 40%, #3C2A14 100%);
-  color: white;
+  background: var(--player-bg);
+  color: var(--player-text);
 }
 
 .player-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px 8px;
+  padding: 52px 20px 8px;
   flex-shrink: 0;
 }
 
 .player-header .back-btn {
-  color: var(--accent-light);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--player-surface);
+  border: none;
+  color: var(--player-text-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
 }
 
 .player-title {
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 600;
-  color: rgba(255,255,255,0.9);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--player-text-2);
   text-align: center;
   flex: 1;
   white-space: nowrap;
@@ -38,150 +50,162 @@
   padding-bottom: calc(20px + var(--safe-bottom));
 }
 
-/* ═══ CD Disc ═══ */
-.cd-container {
-  position: relative;
-  width: 220px;
-  height: 220px;
-  margin: 20px 0 16px;
+/* ═══ Chronometer Face ═══ */
+.chrono-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0 12px;
   flex-shrink: 0;
 }
 
-.cd-disc {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
+.chrono-face {
+  width: 260px;
+  height: 260px;
   position: relative;
-  background:
-    radial-gradient(circle at 50% 50%, transparent 10%, var(--disc-outer) 11%, var(--disc-outer) 12%, transparent 13%),
-    conic-gradient(from 0deg, rgba(255,255,255,0.02) 0%, transparent 5%, rgba(255,255,255,0.03) 10%, transparent 15%, rgba(255,255,255,0.02) 20%, transparent 25%, rgba(255,255,255,0.03) 30%, transparent 35%, rgba(255,255,255,0.02) 40%, transparent 45%, rgba(255,255,255,0.03) 50%, transparent 55%, rgba(255,255,255,0.02) 60%, transparent 65%, rgba(255,255,255,0.03) 70%, transparent 75%, rgba(255,255,255,0.02) 80%, transparent 85%, rgba(255,255,255,0.03) 90%, transparent 95%),
-    radial-gradient(circle at 50% 50%, transparent 32%, rgba(255,255,255,0.05) 33%, transparent 34%),
-    radial-gradient(circle at 50% 50%, transparent 44%, rgba(255,255,255,0.03) 45%, transparent 46%),
-    radial-gradient(circle at 50% 50%, transparent 56%, rgba(255,255,255,0.04) 57%, transparent 58%),
-    radial-gradient(circle at 50% 50%, transparent 68%, rgba(255,255,255,0.03) 69%, transparent 70%),
-    radial-gradient(circle at 50% 50%, transparent 80%, rgba(255,255,255,0.05) 81%, transparent 82%),
-    radial-gradient(circle at 50% 50%, var(--disc-mid) 0%, var(--disc-outer) 100%);
-  box-shadow:
-    0 0 0 3px rgba(255,255,255,0.05),
-    0 8px 32px rgba(0,0,0,0.5),
-    inset 0 0 40px rgba(0,0,0,0.3);
 }
 
-.cd-label {
+.chrono-face svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Ring elements */
+.ring-track {
+  fill: none;
+  stroke: var(--player-ring-track);
+  stroke-width: 3;
+}
+
+.ring-progress {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 6px var(--accent-glow));
+  transition: stroke-dashoffset 0.5s linear;
+}
+
+/* Overtime ring — appears when timer goes over */
+.ring-overtime {
+  fill: none;
+  stroke: var(--overtime);
+  stroke-width: 3;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 8px var(--overtime-glow));
+  transition: stroke-dashoffset 0.5s linear;
+  opacity: 0;
+}
+
+.ring-overtime.active {
+  opacity: 1;
+}
+
+/* Tick marks */
+.tick {
+  stroke: var(--player-text-3);
+  stroke-width: 1;
+}
+
+.tick.major {
+  stroke: var(--player-text-2);
+  stroke-width: 1.5;
+}
+
+/* Aging: ticks change color during overtime */
+.tick.overtime {
+  stroke: var(--overtime) !important;
+  stroke-width: 1.5 !important;
+  filter: drop-shadow(0 0 2px var(--overtime-glow));
+}
+
+/* Center content */
+.chrono-center {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, var(--accent-light) 0%, var(--accent) 50%, var(--accent-dark) 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: inset 0 2px 4px rgba(255,255,255,0.2), inset 0 -2px 4px rgba(0,0,0,0.2);
-}
-
-.cd-label::after {
-  content: '';
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--disc-mid);
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.5), 0 1px 1px rgba(255,255,255,0.1);
-}
-
-.cd-shine {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.04) 100%);
-  pointer-events: none;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.cd-disc.spinning {
-  animation: spin 3s linear infinite;
-}
-
-.cd-disc.paused {
-  animation: spin 3s linear infinite;
-  animation-play-state: paused;
-}
-
-/* ═══ Timer ═══ */
-.player-timer {
-  font-size: 56px;
-  font-weight: 200;
-  letter-spacing: 2px;
-  color: rgba(255,255,255,0.95);
-  font-variant-numeric: tabular-nums;
-  margin: 8px 0 4px;
-  flex-shrink: 0;
-}
-
-.player-step-label {
-  font-size: 18px;
-  font-weight: 500;
-  color: var(--accent-light);
-  margin-bottom: 4px;
   text-align: center;
-  padding: 0 20px;
-  flex-shrink: 0;
+  width: 200px;
 }
 
-.player-step-count {
-  font-size: 13px;
-  color: rgba(255,255,255,0.4);
-  margin-bottom: 20px;
-  flex-shrink: 0;
+.step-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--accent);
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
 }
 
-/* ═══ Progress Bar ═══ */
-.progress-container {
-  width: calc(100% - 48px);
-  max-width: 320px;
-  margin-bottom: 24px;
-  flex-shrink: 0;
+.timer-display {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 48px;
+  font-weight: 300;
+  color: var(--player-text);
+  letter-spacing: 2px;
+  line-height: 1;
+  margin-bottom: 6px;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.5s ease;
 }
 
-.progress-bar {
-  width: 100%;
-  height: 4px;
-  background: rgba(255,255,255,0.1);
-  border-radius: 2px;
-  overflow: hidden;
+/* Timer turns overtime color when past zero */
+.timer-display.overtime {
+  color: var(--overtime);
 }
 
-.progress-fill {
-  height: 100%;
-  background: var(--accent);
-  border-radius: 2px;
-  transition: width 0.5s linear;
-  width: 0%;
+.step-counter {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--player-text-3);
+}
+
+/* ═══ Alert Pulse ═══ */
+/* Ambient glow when step timer expires */
+@keyframes alertPulse {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 40px 8px var(--overtime-glow); }
+}
+
+@keyframes alertPulseStrong {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 60px 16px var(--overtime-glow); }
+}
+
+.chrono-face.alerting {
+  animation: alertPulse 2.5s ease-in-out infinite;
+}
+
+/* Escalated: multiple overtime items stacking */
+.chrono-face.alerting-escalated {
+  animation: alertPulseStrong 1.8s ease-in-out infinite;
+}
+
+.chrono-face.alerting,
+.chrono-face.alerting-escalated {
+  border-radius: 50%;
 }
 
 /* ═══ Controls ═══ */
 .player-controls {
   display: flex;
   align-items: center;
-  gap: 32px;
-  margin-bottom: 28px;
+  justify-content: center;
+  gap: 24px;
+  padding: 8px 0 24px;
   flex-shrink: 0;
 }
 
 .ctrl-btn {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: none;
-  background: rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.7);
-  font-size: 18px;
+  background: var(--player-surface);
+  color: var(--player-text-2);
+  font-size: 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -190,28 +214,136 @@
 }
 
 .ctrl-btn:active {
-  background: rgba(255,255,255,0.15);
+  background: var(--player-surface-2);
 }
 
+.ctrl-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ═══ Play/Pause Button ═══ */
 .play-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: none;
+  background: var(--player-surface);
+  color: var(--player-text);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s, background 0.15s;
+}
+
+.play-btn:active {
+  transform: scale(0.92);
+}
+
+.play-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* ═══ THE KACHUNK BUTTON ═══ */
+/* The next-step button. The signature interaction. */
+/* Larger, more prominent, satisfying to press. */
+
+.kachunk-btn {
   width: 72px;
   height: 72px;
   border-radius: 50%;
   border: none;
   background: var(--accent);
   color: white;
-  font-size: 28px;
+  font-size: 24px;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(212,136,58,0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow:
+    0 4px 20px var(--accent-glow-strong),
+    0 0 0 3px rgba(196, 75, 26, 0.12);
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s;
+  position: relative;
+  overflow: hidden;
 }
 
-.play-btn:active {
-  transform: scale(0.92);
-  box-shadow: 0 2px 10px rgba(212,136,58,0.3);
+.kachunk-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* Press animation: satisfying mechanical snap */
+.kachunk-btn:active {
+  transform: scale(0.88);
+  box-shadow:
+    0 2px 8px var(--accent-glow),
+    0 0 0 2px rgba(196, 75, 26, 0.08);
+}
+
+/* Spring-back after press */
+@keyframes kachunkSnap {
+  0% { transform: scale(0.88); }
+  40% { transform: scale(1.06); }
+  70% { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+
+.kachunk-btn.snapping {
+  animation: kachunkSnap 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Subtle idle pulse to draw attention when step is complete */
+@keyframes kachunkPulse {
+  0%, 100% {
+    box-shadow:
+      0 4px 20px var(--accent-glow-strong),
+      0 0 0 3px rgba(196, 75, 26, 0.12);
+  }
+  50% {
+    box-shadow:
+      0 4px 28px var(--accent-glow-strong),
+      0 0 0 6px rgba(196, 75, 26, 0.08);
+  }
+}
+
+.kachunk-btn.ready-pulse {
+  animation: kachunkPulse 2s ease-in-out infinite;
+}
+
+.kachunk-btn svg {
+  width: 28px;
+  height: 28px;
+}
+
+/* Previous button — smaller, understated */
+.prev-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--player-surface);
+  color: var(--player-text-3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.prev-btn:active {
+  color: var(--player-text-2);
+}
+
+.prev-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* ═══ Step List ═══ */
@@ -220,31 +352,46 @@
   padding: 0 24px;
 }
 
+.steps-list-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--player-text-3);
+  margin-bottom: 10px;
+  padding-left: 4px;
+}
+
 .player-step-item {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 10px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(240, 235, 227, 0.04);
+}
+
+.player-step-item:last-child {
+  border-bottom: none;
 }
 
 .player-step-item .psi-num {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.08);
-  font-size: 12px;
+  background: var(--player-surface);
+  font-size: 11px;
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255,255,255,0.4);
+  color: var(--player-text-3);
   flex-shrink: 0;
 }
 
 .player-step-item.completed .psi-num {
   background: var(--success);
   color: white;
+  font-size: 10px;
 }
 
 .player-step-item.current .psi-num {
@@ -252,35 +399,50 @@
   color: white;
 }
 
+/* Overtime indicator on step number */
+.player-step-item.overtime .psi-num {
+  background: var(--overtime);
+  color: white;
+}
+
 .player-step-item .psi-label {
   flex: 1;
-  font-size: 15px;
-  color: rgba(255,255,255,0.4);
+  font-size: 14px;
+  color: var(--player-text-3);
 }
 
 .player-step-item.current .psi-label {
-  color: rgba(255,255,255,0.9);
+  color: var(--player-text);
   font-weight: 500;
 }
 
 .player-step-item.completed .psi-label {
-  color: rgba(255,255,255,0.3);
+  color: var(--player-text-3);
   text-decoration: line-through;
 }
 
 .player-step-item .psi-dur {
-  font-size: 13px;
-  color: rgba(255,255,255,0.25);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--player-text-3);
   flex-shrink: 0;
 }
 
 .player-step-item.current .psi-dur {
-  color: var(--accent-light);
+  color: var(--accent);
 }
 
-/* ═══ Player Source Indicator ═══ */
-.psi-source {
+/* Overtime duration display */
+.player-step-item .psi-overtime {
+  font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
+  color: var(--overtime);
+  margin-left: 4px;
+}
+
+/* ═══ Source Indicator ═══ */
+.psi-source {
+  font-size: 10px;
   color: var(--accent);
   font-weight: 500;
   margin-bottom: 1px;
@@ -290,7 +452,7 @@
 }
 
 .psi-source .link-icon {
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .player-step-item .psi-label-wrap {
@@ -302,10 +464,7 @@
 .player-audio-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 4px;
-  margin-bottom: 8px;
-  flex-shrink: 0;
+  gap: 8px;
 }
 
 .player-audio-btn {
@@ -313,23 +472,22 @@
   height: 36px;
   border-radius: 50%;
   border: none;
-  background: rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.5);
-  font-size: 16px;
+  background: var(--player-surface);
+  color: var(--player-text-3);
+  font-size: 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s, color 0.15s;
 }
 
 .player-audio-btn:active {
-  background: rgba(255,255,255,0.15);
+  background: var(--player-surface-2);
 }
 
 .player-audio-btn.active {
-  color: var(--accent-light);
-  background: rgba(212,136,58,0.15);
+  color: var(--accent);
+  background: var(--accent-glow);
 }
 
 /* ═══ Player BG Picker ═══ */
@@ -338,7 +496,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(44,24,16,0.98);
+  background: rgba(20, 18, 16, 0.98);
   border-radius: 20px 20px 0 0;
   padding: 16px 20px calc(16px + var(--safe-bottom));
   z-index: 101;
@@ -352,33 +510,28 @@
 
 .player-bg-picker .handle {
   width: 36px;
-  height: 5px;
-  background: rgba(255,255,255,0.15);
-  border-radius: 3px;
+  height: 4px;
+  background: rgba(240, 235, 227, 0.1);
+  border-radius: 2px;
   margin: 0 auto 12px;
 }
 
 .player-bg-picker .picker-title {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
-  color: rgba(255,255,255,0.8);
+  color: var(--player-text-2);
   text-align: center;
   margin-bottom: 12px;
 }
 
 .player-bg-picker .sound-pill {
-  background: rgba(255,255,255,0.06);
-  border-color: rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.7);
+  background: var(--player-surface);
+  border-color: rgba(240, 235, 227, 0.06);
+  color: var(--player-text-2);
 }
 
 .player-bg-picker .sound-pill.selected {
   background: var(--accent);
   border-color: var(--accent);
   color: white;
-}
-
-.player-bg-picker .sound-pill .pill-preview {
-  background: rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.5);
 }

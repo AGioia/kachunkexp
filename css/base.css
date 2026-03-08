@@ -1,10 +1,12 @@
 /* ═══ Base / Reset ═══ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap');
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
   height: 100%;
   overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
   -webkit-tap-highlight-color: transparent;
@@ -24,8 +26,8 @@ body {
   overflow: hidden;
   opacity: 0;
   pointer-events: none;
-  transform: translateX(30px);
-  transition: opacity 0.35s ease, transform 0.35s ease;
+  transform: translateX(20px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
   padding-top: var(--safe-top);
   padding-bottom: var(--safe-bottom);
 }
@@ -38,7 +40,7 @@ body {
 
 .screen.slide-out-left {
   opacity: 0;
-  transform: translateX(-30px);
+  transform: translateX(-20px);
 }
 
 /* ═══ Header ═══ */
@@ -46,20 +48,23 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px 12px;
+  padding: 52px 24px 16px;
   flex-shrink: 0;
 }
 
-.header h1 {
-  font-size: 28px;
+.header .wordmark {
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: -0.5px;
+  letter-spacing: 3.5px;
+  text-transform: uppercase;
   color: var(--text);
 }
 
 .header-subtitle {
-  font-size: 13px;
-  color: var(--text-light);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-3);
+  letter-spacing: 0.5px;
   margin-top: 2px;
 }
 
@@ -69,8 +74,8 @@ body {
   gap: 4px;
   background: none;
   border: none;
-  color: var(--accent);
-  font-size: 16px;
+  color: var(--text-2);
+  font-size: 15px;
   font-weight: 500;
   cursor: pointer;
   padding: 8px 4px;
@@ -78,8 +83,8 @@ body {
 }
 
 .back-btn svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 /* ═══ Scrollable Content ═══ */
@@ -88,6 +93,24 @@ body {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: 0 20px 100px;
+}
+
+/* ═══ Section Labels ═══ */
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-3);
+  padding: 0 24px;
+  margin-bottom: 12px;
+}
+
+/* ═══ Divider ═══ */
+.divider-line {
+  height: 1px;
+  background: var(--border);
+  margin: 12px 24px 16px;
 }
 
 /* ═══ Empty State ═══ */
@@ -100,27 +123,37 @@ body {
   text-align: center;
 }
 
-.empty-state .disc-icon {
-  width: 80px;
-  height: 80px;
+.empty-state .empty-chrono {
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 50%, var(--text-faint) 15%, transparent 16%),
-              conic-gradient(from 0deg, rgba(0,0,0,0.03) 0%, transparent 25%, rgba(0,0,0,0.03) 50%, transparent 75%),
-              radial-gradient(circle at 50% 50%, transparent 30%, var(--text-faint) 31%, var(--text-faint) 32%, transparent 33%),
-              linear-gradient(135deg, #DDD 0%, #BBB 100%);
+  border: 2px solid var(--border);
   margin-bottom: 20px;
-  opacity: 0.4;
+  position: relative;
+}
+
+.empty-state .empty-chrono::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-3);
+  transform: translate(-50%, -50%);
+  opacity: 0.3;
 }
 
 .empty-state h2 {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   margin-bottom: 8px;
   color: var(--text);
 }
 
 .empty-state p {
-  font-size: 15px;
-  color: var(--text-light);
+  font-size: 14px;
+  color: var(--text-3);
   line-height: 1.5;
 }

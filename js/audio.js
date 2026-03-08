@@ -302,7 +302,77 @@ function playUiWhoosh(ctx, dest) {
   src.connect(f); f.connect(g); g.connect(dest); src.start(now); src.stop(now + 0.16);
 }
 
-const uiFunctions = { clickPlay: playUiClickPlay, clickPause: playUiClickPause, whoosh: playUiWhoosh };
+// ─── The KaChunk Sound ───
+// Signature interaction: a satisfying mechanical "chunk" with weight and snap
+
+function playKaChunk(ctx, dest) {
+  const now = ctx.currentTime;
+
+  // 1. Mechanical click — sharp transient
+  const click = ctx.createOscillator();
+  const clickGain = ctx.createGain();
+  click.type = 'sine';
+  click.frequency.setValueAtTime(2400, now);
+  click.frequency.exponentialRampToValueAtTime(400, now + 0.025);
+  clickGain.gain.setValueAtTime(0, now);
+  clickGain.gain.linearRampToValueAtTime(0.35, now + 0.002);
+  clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+  click.connect(clickGain); clickGain.connect(dest);
+  click.start(now); click.stop(now + 0.07);
+
+  // 2. Body thunk — the "chunk" weight
+  const thunk = ctx.createOscillator();
+  const thunkGain = ctx.createGain();
+  thunk.type = 'sine';
+  thunk.frequency.setValueAtTime(180, now + 0.01);
+  thunk.frequency.exponentialRampToValueAtTime(80, now + 0.08);
+  thunkGain.gain.setValueAtTime(0, now + 0.01);
+  thunkGain.gain.linearRampToValueAtTime(0.25, now + 0.015);
+  thunkGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+  thunk.connect(thunkGain); thunkGain.connect(dest);
+  thunk.start(now + 0.01); thunk.stop(now + 0.13);
+
+  // 3. Bright confirmation — the reward ring
+  const ring = ctx.createOscillator();
+  const ringGain = ctx.createGain();
+  ring.type = 'sine';
+  ring.frequency.setValueAtTime(880, now + 0.04);
+  ringGain.gain.setValueAtTime(0, now + 0.04);
+  ringGain.gain.linearRampToValueAtTime(0.15, now + 0.06);
+  ringGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+  ring.connect(ringGain); ringGain.connect(dest);
+  ring.start(now + 0.04); ring.stop(now + 0.36);
+
+  // 4. Harmonic shimmer
+  const shimmer = ctx.createOscillator();
+  const shimGain = ctx.createGain();
+  shimmer.type = 'sine';
+  shimmer.frequency.setValueAtTime(1320, now + 0.06);
+  shimGain.gain.setValueAtTime(0, now + 0.06);
+  shimGain.gain.linearRampToValueAtTime(0.06, now + 0.08);
+  shimGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+  shimmer.connect(shimGain); shimGain.connect(dest);
+  shimmer.start(now + 0.06); shimmer.stop(now + 0.32);
+}
+
+// ─── Overtime Alert Pulse Sound ───
+// Gentle ambient pulse, escalates subtly
+
+function playOvertimePulse(ctx, dest, intensity) {
+  const now = ctx.currentTime;
+  const vol = 0.04 + (intensity || 0) * 0.03; // louder as things stack
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(440, now);
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(vol, now + 0.3);
+  gain.gain.linearRampToValueAtTime(0, now + 1.2);
+  osc.connect(gain); gain.connect(dest);
+  osc.start(now); osc.stop(now + 1.3);
+}
+
+const uiFunctions = { clickPlay: playUiClickPlay, clickPause: playUiClickPause, whoosh: playUiWhoosh, kachunk: playKaChunk, overtimePulse: playOvertimePulse };
 
 // ─── Playback API ───
 

@@ -1,32 +1,50 @@
 /* ═══ KaChunk Design Tokens ═══ */
 :root {
   /* Background */
-  --bg: #FDF6EC;
-  --card: #FFFAF0;
+  --bg: #F5F0E8;
+  --card: #FFFDF8;
+  --surface: #EDE8DF;
 
-  /* Accent */
-  --accent: #D4883A;
-  --accent-light: #E8A862;
-  --accent-dark: #B56E28;
+  /* Accent — burnt orange, signal color */
+  --accent: #C44B1A;
+  --accent-soft: rgba(196, 75, 26, 0.08);
+  --accent-glow: rgba(196, 75, 26, 0.15);
+  --accent-glow-strong: rgba(196, 75, 26, 0.35);
 
   /* Text */
-  --text: #3C2A14;
-  --text-light: #7A6350;
-  --text-faint: #B8A894;
+  --text: #1A1613;
+  --text-2: #6B5E52;
+  --text-3: #A69A8E;
 
-  /* Shadows */
-  --shadow: rgba(60, 42, 20, 0.1);
-  --shadow-strong: rgba(60, 42, 20, 0.18);
+  /* Borders */
+  --border: rgba(26, 22, 19, 0.06);
+  --border-focus: rgba(196, 75, 26, 0.4);
 
   /* Semantic */
-  --danger: #C0392B;
-  --success: #27AE60;
+  --danger: #A63220;
+  --success: #3D8B5E;
 
-  /* Player / Disc */
-  --disc-outer: #2C1810;
-  --disc-mid: #1A0E08;
-  --disc-groove: rgba(255,255,255,0.04);
-  --disc-label: #D4883A;
+  /* Aging / Overtime */
+  --overtime: #D4583B;
+  --overtime-glow: rgba(212, 88, 59, 0.2);
+  --overtime-deep: #B83A2A;
+
+  /* Player (dark) */
+  --player-bg: #141210;
+  --player-surface: #1E1B18;
+  --player-surface-2: #282420;
+  --player-text: #F0EBE3;
+  --player-text-2: rgba(240, 235, 227, 0.5);
+  --player-text-3: rgba(240, 235, 227, 0.25);
+  --player-ring-track: rgba(240, 235, 227, 0.06);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(26, 22, 19, 0.04);
+  --shadow-md: 0 2px 8px rgba(26, 22, 19, 0.06);
+
+  /* Radii */
+  --radius: 12px;
+  --radius-sm: 8px;
 
   /* Safe areas */
   --safe-top: env(safe-area-inset-top, 0px);
