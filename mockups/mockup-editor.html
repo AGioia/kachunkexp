@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KaChunk — Editor (Mockup)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #F5F0E8;
+    --card: #FFFDF8;
+    --surface: #EDE8DF;
+    --accent: #C44B1A;
+    --accent-soft: rgba(196, 75, 26, 0.06);
+    --text: #1A1613;
+    --text-2: #6B5E52;
+    --text-3: #A69A8E;
+    --border: rgba(26, 22, 19, 0.06);
+    --border-focus: rgba(196, 75, 26, 0.4);
+    --danger: #A63220;
+    --shadow-sm: 0 1px 2px rgba(26, 22, 19, 0.04);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    max-width: 375px;
+    min-height: 812px;
+    margin: 0 auto;
+    position: relative;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─── Header ─── */
+  .editor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 56px 20px 16px;
+  }
+
+  .back-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-2);
+    cursor: pointer;
+    padding: 8px 4px;
+  }
+
+  .back-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .header-title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+
+  .header-spacer {
+    width: 60px;
+  }
+
+  /* ─── Content ─── */
+  .editor-content {
+    padding: 0 20px 120px;
+  }
+
+  /* ─── Form ─── */
+  .field-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .field-input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 17px;
+    font-family: inherit;
+    font-weight: 500;
+    color: var(--text);
+    background: var(--card);
+    outline: none;
+    transition: border-color 0.15s;
+    letter-spacing: -0.2px;
+  }
+
+  .field-input:focus {
+    border-color: var(--border-focus);
+  }
+
+  .field-input::placeholder {
+    color: var(--text-3);
+    font-weight: 400;
+  }
+
+  /* ─── Steps Section ─── */
+  .steps-section {
+    margin-top: 28px;
+  }
+
+  .steps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .step-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--card);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+  }
+
+  .step-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--text);
+    color: var(--bg);
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .step-name-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    font-size: 15px;
+    font-family: inherit;
+    font-weight: 400;
+    color: var(--text);
+    outline: none;
+    padding: 4px 0;
+  }
+
+  .step-name-input::placeholder {
+    color: var(--text-3);
+  }
+
+  .step-duration {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+  }
+
+  .step-dur-input {
+    width: 40px;
+    padding: 5px 4px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: center;
+    color: var(--text);
+    background: var(--bg);
+    outline: none;
+  }
+
+  .step-dur-input:focus {
+    border-color: var(--border-focus);
+  }
+
+  .step-dur-unit {
+    font-size: 11px;
+    color: var(--text-3);
+    font-weight: 500;
+  }
+
+  .step-drag {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-3);
+    flex-shrink: 0;
+    cursor: grab;
+    opacity: 0.4;
+  }
+
+  .step-drag svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* ─── Add Step Button ─── */
+  .add-step-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 13px;
+    border: 1.5px dashed rgba(26, 22, 19, 0.1);
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--text-2);
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .add-step-btn:active {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .add-step-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* ─── Summary Bar ─── */
+  .summary-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 16px;
+    margin-top: 24px;
+    background: var(--surface);
+    border-radius: var(--radius);
+  }
+
+  .summary-item {
+    text-align: center;
+  }
+
+  .summary-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .summary-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-top: 2px;
+  }
+
+  .summary-divider {
+    width: 1px;
+    height: 28px;
+    background: var(--border);
+  }
+
+  /* ─── Save Button ─── */
+  .save-btn {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--text);
+    color: var(--bg);
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: transform 0.1s;
+  }
+
+  .save-btn:active {
+    transform: scale(0.98);
+  }
+</style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="editor-header">
+    <button class="back-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Back
+    </button>
+    <div class="header-title">Edit Chunk</div>
+    <div class="header-spacer"></div>
+  </div>
+
+  <!-- Content -->
+  <div class="editor-content">
+
+    <!-- Name -->
+    <div style="margin-bottom: 4px;">
+      <label class="field-label">Chunk Name</label>
+      <input type="text" class="field-input" value="Morning Routine" placeholder="Name your routine">
+    </div>
+
+    <!-- Steps -->
+    <div class="steps-section">
+      <label class="field-label">Steps</label>
+
+      <div class="steps-list">
+        <div class="step-row">
+          <div class="step-num">1</div>
+          <input type="text" class="step-name-input" value="Wake up + hydrate">
+          <div class="step-duration">
+            <input type="text" class="step-dur-input" value="2">
+            <span class="step-dur-unit">min</span>
+          </div>
+          <div class="step-drag">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+          </div>
+        </div>
+
+        <div class="step-row">
+          <div class="step-num">2</div>
+          <input type="text" class="step-name-input" value="Stretching">
+          <div class="step-duration">
+            <input type="text" class="step-dur-input" value="8">
+            <span class="step-dur-unit">min</span>
+          </div>
+          <div class="step-drag">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+          </div>
+        </div>
+
+        <div class="step-row">
+          <div class="step-num">3</div>
+          <input type="text" class="step-name-input" value="Meditation">
+          <div class="step-duration">
+            <input type="text" class="step-dur-input" value="5">
+            <span class="step-dur-unit">min</span>
+          </div>
+          <div class="step-drag">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+          </div>
+        </div>
+
+        <div class="step-row">
+          <div class="step-num">4</div>
+          <input type="text" class="step-name-input" value="Cold shower">
+          <div class="step-duration">
+            <input type="text" class="step-dur-input" value="5">
+            <span class="step-dur-unit">min</span>
+          </div>
+          <div class="step-drag">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+          </div>
+        </div>
+
+        <div class="step-row">
+          <div class="step-num">5</div>
+          <input type="text" class="step-name-input" value="Journal">
+          <div class="step-duration">
+            <input type="text" class="step-dur-input" value="10">
+            <span class="step-dur-unit">min</span>
+          </div>
+          <div class="step-drag">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+          </div>
+        </div>
+
+        <!-- Add Step -->
+        <button class="add-step-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Step
+        </button>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-bar">
+      <div class="summary-item">
+        <div class="summary-value">5</div>
+        <div class="summary-label">Steps</div>
+      </div>
+      <div class="summary-divider"></div>
+      <div class="summary-item">
+        <div class="summary-value">30</div>
+        <div class="summary-label">Minutes</div>
+      </div>
+    </div>
+
+    <!-- Save -->
+    <button class="save-btn">Save Chunk</button>
+
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KaChunk — Player (Mockup)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #141210;
+    --surface: #1E1B18;
+    --surface-2: #282420;
+    --accent: #C44B1A;
+    --accent-glow: rgba(196, 75, 26, 0.15);
+    --text: #F0EBE3;
+    --text-2: rgba(240, 235, 227, 0.5);
+    --text-3: rgba(240, 235, 227, 0.25);
+    --ring-track: rgba(240, 235, 227, 0.06);
+    --success: #3D8B5E;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    max-width: 375px;
+    min-height: 812px;
+    margin: 0 auto;
+    position: relative;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ─── Header ─── */
+  .player-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 56px 20px 12px;
+    flex-shrink: 0;
+  }
+
+  .back-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: none;
+    color: var(--text-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .back-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .player-chunk-name {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-2);
+    text-align: center;
+    flex: 1;
+  }
+
+  .audio-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: none;
+    color: var(--text-3);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  /* ─── Chronometer Face ─── */
+  .chrono-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 0 16px;
+    flex-shrink: 0;
+  }
+
+  .chrono-face {
+    width: 260px;
+    height: 260px;
+    position: relative;
+  }
+
+  .chrono-face svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Outer ring track */
+  .ring-track {
+    fill: none;
+    stroke: var(--ring-track);
+    stroke-width: 3;
+  }
+
+  /* Progress ring */
+  .ring-progress {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 3;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 6px rgba(196, 75, 26, 0.3));
+    transform-origin: center;
+    transform: rotate(-90deg);
+  }
+
+  /* Tick marks */
+  .tick {
+    stroke: var(--text-3);
+    stroke-width: 1;
+  }
+
+  .tick.major {
+    stroke: var(--text-2);
+    stroke-width: 1.5;
+  }
+
+  /* Center content */
+  .chrono-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    width: 200px;
+  }
+
+  .step-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--accent);
+    margin-bottom: 8px;
+    letter-spacing: 0.3px;
+  }
+
+  .timer-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 52px;
+    font-weight: 300;
+    color: var(--text);
+    letter-spacing: 2px;
+    line-height: 1;
+    margin-bottom: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .step-counter {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-3);
+  }
+
+  /* ─── Controls ─── */
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    padding: 8px 0 24px;
+    flex-shrink: 0;
+  }
+
+  .ctrl-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: none;
+    color: var(--text-2);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .ctrl-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .play-btn {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    color: white;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 24px rgba(196, 75, 26, 0.35);
+  }
+
+  .play-btn svg {
+    width: 24px;
+    height: 24px;
+    margin-left: 2px;
+  }
+
+  /* Pause icon variant */
+  .play-btn .pause-icon {
+    display: flex;
+    gap: 5px;
+  }
+
+  .play-btn .pause-icon span {
+    width: 4px;
+    height: 20px;
+    background: white;
+    border-radius: 2px;
+  }
+
+  /* ─── Step List ─── */
+  .steps-section {
+    flex: 1;
+    padding: 0 20px;
+    overflow-y: auto;
+  }
+
+  .steps-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 12px;
+    padding-left: 4px;
+  }
+
+  .step-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 11px 0;
+    border-bottom: 1px solid rgba(240, 235, 227, 0.04);
+  }
+
+  .step-item:last-child {
+    border-bottom: none;
+  }
+
+  .step-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: var(--surface);
+    color: var(--text-3);
+  }
+
+  .step-item.completed .step-num {
+    background: var(--success);
+    color: white;
+    font-size: 10px;
+  }
+
+  .step-item.current .step-num {
+    background: var(--accent);
+    color: white;
+  }
+
+  .step-name {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-3);
+  }
+
+  .step-item.current .step-name {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .step-item.completed .step-name {
+    color: var(--text-3);
+    text-decoration: line-through;
+  }
+
+  .step-dur {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-3);
+    flex-shrink: 0;
+  }
+
+  .step-item.current .step-dur {
+    color: var(--accent);
+  }
+
+  /* ─── Bottom Safe Area ─── */
+  .bottom-safe {
+    height: 34px;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="player-header">
+    <button class="back-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="player-chunk-name">Morning Routine</div>
+    <button class="audio-btn">♪</button>
+  </div>
+
+  <!-- Chronometer -->
+  <div class="chrono-container">
+    <div class="chrono-face">
+      <svg viewBox="0 0 260 260">
+        <!-- Tick marks (60 ticks, every 5 is major) -->
+        <g>
+          <script type="text/javascript">
+            // Generate ticks via inline SVG — static for mockup
+          </script>
+          <!-- Major ticks (12 o'clock positions) -->
+          <line class="tick major" x1="130" y1="16" x2="130" y2="28" />
+          <line class="tick major" x1="187" y1="22.5" x2="181.3" y2="33.3" transform="rotate(30 130 130)" style="transform-origin:130px 130px"/>
+          <line class="tick major" x1="130" y1="16" x2="130" y2="28" transform="rotate(60, 130, 130)"/>
+          <line class="tick major" x1="130" y1="16" x2="130" y2="28" transform="rotate(90, 130, 130)"/>
+          <line class="tick major" x1="130" y1="16" x2="130" y2="28" transform="rotate(120, 130, 130)"/>
+          <line class="tick major" x1="130" y1="16" x2="130" y2="28" transform="rotate(150, 130, 130)"/>
+          <line class="tick major" x1="130" y1="16" x2="130" y2="28" transform="rotate(180, 130, 130)"/>
+          <line class="tick major" x1="130" y1="16" x2="130" y2="28" transform="rotate(210, 130, 130)"/>
+          <line class="tick major" x1="130" y1="16" x2="130" y2="28" transform="rotate(240, 130, 130)"/>
+          <line class="tick major" x1="130" y1="16" x2="130" y2="28" transform="rotate(270, 130, 130)"/>
+          <line class="tick major" x1="130" y1="16" x2="130" y2="28" transform="rotate(300, 130, 130)"/>
+          <line class="tick major" x1="130" y1="16" x2="130" y2="28" transform="rotate(330, 130, 130)"/>
+
+          <!-- Minor ticks -->
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(6, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(12, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(18, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(24, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(36, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(42, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(48, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(54, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(66, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(72, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(78, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(84, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(96, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(102, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(108, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(114, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(126, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(132, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(138, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(144, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(156, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(162, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(168, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(174, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(186, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(192, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(198, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(204, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(216, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(222, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(228, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(234, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(246, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(252, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(258, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(264, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(276, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(282, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(288, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(294, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(306, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(312, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(318, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(324, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(336, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(342, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(348, 130, 130)"/>
+          <line class="tick" x1="130" y1="18" x2="130" y2="24" transform="rotate(354, 130, 130)"/>
+        </g>
+
+        <!-- Track ring -->
+        <circle class="ring-track" cx="130" cy="130" r="115"/>
+
+        <!-- Progress ring (shows ~65% complete for this step) -->
+        <circle class="ring-progress" cx="130" cy="130" r="115"
+          stroke-dasharray="722.6"
+          stroke-dashoffset="252.9"
+          transform="rotate(-90 130 130)"/>
+
+        <!-- Inner subtle ring -->
+        <circle cx="130" cy="130" r="90" fill="none" stroke="rgba(240,235,227,0.03)" stroke-width="0.5"/>
+      </svg>
+
+      <!-- Center content -->
+      <div class="chrono-center">
+        <div class="step-label">Meditation</div>
+        <div class="timer-display">03:24</div>
+        <div class="step-counter">Step 3 of 7</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="ctrl-btn">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v2H6zM6 16l6-5-6-5z"/><path d="M12 16l6-5-6-5z"/></svg>
+    </button>
+    <button class="play-btn">
+      <div class="pause-icon"><span></span><span></span></div>
+    </button>
+    <button class="ctrl-btn">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 16l6-5-6-5z"/><path d="M12 16l6-5-6-5z"/><path d="M6 16h12v2H6z"/></svg>
+    </button>
+  </div>
+
+  <!-- Step List -->
+  <div class="steps-section">
+    <div class="steps-label">Steps</div>
+
+    <div class="step-item completed">
+      <div class="step-num">✓</div>
+      <div class="step-name">Wake up + hydrate</div>
+      <div class="step-dur">2m</div>
+    </div>
+
+    <div class="step-item completed">
+      <div class="step-num">✓</div>
+      <div class="step-name">Stretching</div>
+      <div class="step-dur">8m</div>
+    </div>
+
+    <div class="step-item current">
+      <div class="step-num">3</div>
+      <div class="step-name">Meditation</div>
+      <div class="step-dur">5m</div>
+    </div>
+
+    <div class="step-item">
+      <div class="step-num">4</div>
+      <div class="step-name">Cold shower</div>
+      <div class="step-dur">5m</div>
+    </div>
+
+    <div class="step-item">
+      <div class="step-num">5</div>
+      <div class="step-name">Journal</div>
+      <div class="step-dur">10m</div>
+    </div>
+
+    <div class="step-item">
+      <div class="step-num">6</div>
+      <div class="step-name">Breakfast prep</div>
+      <div class="step-dur">7m</div>
+    </div>
+
+    <div class="step-item">
+      <div class="step-num">7</div>
+      <div class="step-name">Review day plan</div>
+      <div class="step-dur">5m</div>
+    </div>
+  </div>
+
+  <div class="bottom-safe"></div>
+
+</body>
+</html>

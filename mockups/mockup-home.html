@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KaChunk — Home (Mockup)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #F5F0E8;
+    --card: #FFFDF8;
+    --surface: #EDE8DF;
+    --accent: #C44B1A;
+    --accent-soft: rgba(196, 75, 26, 0.08);
+    --text: #1A1613;
+    --text-2: #6B5E52;
+    --text-3: #A69A8E;
+    --border: rgba(26, 22, 19, 0.06);
+    --shadow-sm: 0 1px 2px rgba(26, 22, 19, 0.04);
+    --shadow-md: 0 2px 8px rgba(26, 22, 19, 0.06);
+    --radius: 12px;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    max-width: 375px;
+    min-height: 812px;
+    margin: 0 auto;
+    position: relative;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─── Header ─── */
+  .header {
+    padding: 56px 24px 20px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+
+  .wordmark {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3.5px;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .settings-icon {
+    width: 20px;
+    height: 20px;
+    color: var(--text-3);
+  }
+
+  /* ─── Section ─── */
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-3);
+    padding: 0 24px;
+    margin-bottom: 12px;
+  }
+
+  /* ─── Chunk Cards ─── */
+  .chunk-list {
+    padding: 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .chunk-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: transform 0.1s ease;
+  }
+
+  .chunk-card:active {
+    transform: scale(0.985);
+  }
+
+  /* Chronometer thumbnail */
+  .chrono-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    position: relative;
+    flex-shrink: 0;
+    background: var(--surface);
+    border: 1.5px solid rgba(26, 22, 19, 0.08);
+  }
+
+  .chrono-thumb::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--accent);
+    transform: translate(-50%, -50%);
+  }
+
+  /* Progress ring on thumb */
+  .chrono-thumb svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+
+  .chrono-thumb .track {
+    fill: none;
+    stroke: rgba(26, 22, 19, 0.04);
+    stroke-width: 2;
+  }
+
+  .chrono-thumb .fill {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.3s;
+  }
+
+  .card-body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .card-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 3px;
+    letter-spacing: -0.1px;
+  }
+
+  .card-meta {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-3);
+    display: flex;
+    gap: 12px;
+  }
+
+  .card-meta .divider {
+    color: rgba(26, 22, 19, 0.12);
+  }
+
+  .card-arrow {
+    width: 16px;
+    height: 16px;
+    color: var(--text-3);
+    flex-shrink: 0;
+    opacity: 0.4;
+  }
+
+  /* ─── Scheduled indicator ─── */
+  .card-schedule {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--accent);
+    margin-top: 4px;
+  }
+
+  .card-schedule .dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  /* ─── FAB ─── */
+  .fab {
+    position: fixed;
+    bottom: 36px;
+    right: calc(50% - 375px/2 + 20px);
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    font-size: 24px;
+    font-weight: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(26, 22, 19, 0.2);
+    cursor: pointer;
+  }
+
+  .fab svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    stroke-width: 2;
+    fill: none;
+  }
+
+  /* ─── Divider ─── */
+  .divider-line {
+    height: 1px;
+    background: var(--border);
+    margin: 20px 24px 16px;
+  }
+
+  /* ─── Status Bar (decorative) ─── */
+  .status-bar {
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    padding: 0 24px;
+  }
+
+  .status-bar .time {
+    position: absolute;
+    left: 24px;
+  }
+
+  /* ─── Bottom safe area ─── */
+  .bottom-space {
+    height: 100px;
+  }
+</style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="wordmark">KaChunk</div>
+    <svg class="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+    </svg>
+  </div>
+
+  <div class="divider-line"></div>
+
+  <!-- Routines -->
+  <div class="section-label">Your Routines</div>
+
+  <div class="chunk-list">
+
+    <!-- Card 1: Morning Routine -->
+    <div class="chunk-card">
+      <div class="chrono-thumb">
+        <svg viewBox="0 0 44 44">
+          <circle class="track" cx="22" cy="22" r="19"/>
+          <circle class="fill" cx="22" cy="22" r="19" stroke-dasharray="119.4" stroke-dashoffset="29.8"/>
+        </svg>
+      </div>
+      <div class="card-body">
+        <div class="card-name">Morning Routine</div>
+        <div class="card-meta">
+          <span>7 steps</span>
+          <span class="divider">·</span>
+          <span>42 min</span>
+        </div>
+        <div class="card-schedule">
+          <span class="dot"></span>
+          Mon–Fri at 6:30 AM
+        </div>
+      </div>
+      <svg class="card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+
+    <!-- Card 2: Deep Work -->
+    <div class="chunk-card">
+      <div class="chrono-thumb">
+        <svg viewBox="0 0 44 44">
+          <circle class="track" cx="22" cy="22" r="19"/>
+          <circle class="fill" cx="22" cy="22" r="19" stroke-dasharray="119.4" stroke-dashoffset="59.7"/>
+        </svg>
+      </div>
+      <div class="card-body">
+        <div class="card-name">Deep Work</div>
+        <div class="card-meta">
+          <span>4 steps</span>
+          <span class="divider">·</span>
+          <span>2h 15m</span>
+        </div>
+      </div>
+      <svg class="card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+
+    <!-- Card 3: Evening Wind Down -->
+    <div class="chunk-card">
+      <div class="chrono-thumb">
+        <svg viewBox="0 0 44 44">
+          <circle class="track" cx="22" cy="22" r="19"/>
+          <circle class="fill" cx="22" cy="22" r="19" stroke-dasharray="119.4" stroke-dashoffset="89.5"/>
+        </svg>
+      </div>
+      <div class="card-body">
+        <div class="card-name">Evening Wind Down</div>
+        <div class="card-meta">
+          <span>5 steps</span>
+          <span class="divider">·</span>
+          <span>35 min</span>
+        </div>
+        <div class="card-schedule">
+          <span class="dot"></span>
+          Daily at 9:00 PM
+        </div>
+      </div>
+      <svg class="card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+
+    <!-- Card 4: Quick Stretch -->
+    <div class="chunk-card">
+      <div class="chrono-thumb">
+        <svg viewBox="0 0 44 44">
+          <circle class="track" cx="22" cy="22" r="19"/>
+          <circle class="fill" cx="22" cy="22" r="19" stroke-dasharray="119.4" stroke-dashoffset="101.5"/>
+        </svg>
+      </div>
+      <div class="card-body">
+        <div class="card-name">Quick Stretch</div>
+        <div class="card-meta">
+          <span>3 steps</span>
+          <span class="divider">·</span>
+          <span>8 min</span>
+        </div>
+      </div>
+      <svg class="card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+
+  </div>
+
+  <div class="bottom-space"></div>
+
+  <!-- FAB -->
+  <button class="fab">
+    <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
+
+</body>
+</html>
