@@ -37,7 +37,43 @@ class ChunkEngine {
 
   _initStep(step) {
     const total = Math.round((parseFloat(step.minutes) || 1) * 60);
-    step._state = { status: 'idle', totalSeconds: total, secondsLeft: total, overtimeSeconds: 0 };
+    step._state = {
+      status: 'idle',
+      totalSeconds: total,
+      // Wall-clock based timing:
+      startedAt: null,       // Date.now() when step began running
+      priorElapsed: 0,       // seconds accumulated before current run (from pauses)
+    };
+  }
+
+  // Compute live secondsLeft / overtimeSeconds from wall clock
+  _calcStep(st) {
+    if (st.status === 'running' || st.status === 'overtime') {
+      const elapsed = st.priorElapsed + (Date.now() - st.startedAt) / 1000;
+      const left = st.totalSeconds - elapsed;
+      return { secondsLeft: Math.max(0, Math.round(left)), overtimeSeconds: left < 0 ? Math.round(-left) : 0, elapsed };
+    } else if (st.status === 'paused') {
+      const left = st.totalSeconds - st.priorElapsed;
+      return { secondsLeft: Math.max(0, Math.round(left)), overtimeSeconds: left < 0 ? Math.round(-left) : 0, elapsed: st.priorElapsed };
+    } else if (st.status === 'done') {
+      return { secondsLeft: 0, overtimeSeconds: Math.round(st.priorElapsed > st.totalSeconds ? st.priorElapsed - st.totalSeconds : 0), elapsed: st.priorElapsed };
+    }
+    return { secondsLeft: st.totalSeconds, overtimeSeconds: 0, elapsed: 0 };
+  }
+
+  // Convenience: get computed values for a step's state
+  static calc(st) {
+    if (st.status === 'running' || st.status === 'overtime') {
+      const elapsed = st.priorElapsed + (Date.now() - st.startedAt) / 1000;
+      const left = st.totalSeconds - elapsed;
+      return { secondsLeft: Math.max(0, Math.round(left)), overtimeSeconds: left < 0 ? Math.round(-left) : 0 };
+    } else if (st.status === 'paused') {
+      const left = st.totalSeconds - st.priorElapsed;
+      return { secondsLeft: Math.max(0, Math.round(left)), overtimeSeconds: left < 0 ? Math.round(-left) : 0 };
+    } else if (st.status === 'done') {
+      return { secondsLeft: 0, overtimeSeconds: Math.round(st.priorElapsed > st.totalSeconds ? st.priorElapsed - st.totalSeconds : 0) };
+    }
+    return { secondsLeft: st.totalSeconds, overtimeSeconds: 0 };
   }
 
   getRunning()  { return this.flatSteps.filter(s => s._state.status === 'running' || s._state.status === 'overtime'); }
@@ -52,8 +88,8 @@ class ChunkEngine {
   totalElapsed() {
     let e = 0;
     this.flatSteps.forEach(s => {
-      const st = s._state;
-      if (st.status !== 'idle') e += (st.totalSeconds - st.secondsLeft) + st.overtimeSeconds;
+      const c = this._calcStep(s._state);
+      if (s._state.status !== 'idle') e += (s._state.totalSeconds - c.secondsLeft) + c.overtimeSeconds;
     });
     return e;
   }
@@ -67,44 +103,64 @@ class ChunkEngine {
   focusedState() { return this.focusedStep()?._state; }
   focusedLabel() { const s = this.focusedStep(); return s ? (s.label || 'Step ' + (this.focusedIdx + 1)) : ''; }
 
-  // Tick all running steps. Returns array of step indices that just entered overtime.
+  // Tick: check for status transitions (running → overtime). Returns indices that just went overtime.
   tick() {
     if (!this.playing) return [];
     const newOT = [];
     this.flatSteps.forEach((step, i) => {
       const st = step._state;
       if (st.status === 'running') {
-        st.secondsLeft--;
-        if (st.secondsLeft <= 0) {
-          st.status = 'overtime'; st.secondsLeft = 0; st.overtimeSeconds = 0;
+        const { secondsLeft } = this._calcStep(st);
+        if (secondsLeft <= 0) {
+          st.status = 'overtime';
           newOT.push(i);
         }
-      } else if (st.status === 'overtime') {
-        st.overtimeSeconds++;
       }
+      // overtime just keeps accumulating via wall clock — no manual increment needed
     });
     return newOT;
   }
 
+  _startStep(st) {
+    st.status = 'running';
+    st.startedAt = Date.now();
+    // priorElapsed stays as-is (could be resuming from pause)
+  }
+
+  _pauseStep(st) {
+    if (st.status === 'running' || st.status === 'overtime') {
+      st.priorElapsed += (Date.now() - st.startedAt) / 1000;
+      st.startedAt = null;
+      st.status = 'paused';
+    }
+  }
+
+  _completeStep(st) {
+    if (st.startedAt) st.priorElapsed += (Date.now() - st.startedAt) / 1000;
+    st.startedAt = null;
+    st.status = 'done';
+  }
+
   startFocused() {
     const st = this.focusedState();
-    if (st && st.status === 'idle') { st.status = 'running'; this.playing = true; }
+    if (st && st.status === 'idle') { this._startStep(st); this.playing = true; }
   }
 
   pauseFocused() {
     const st = this.focusedState();
     if (!st) return;
-    if (st.status === 'overtime' || (st.status === 'paused' && st.secondsLeft <= 0)) {
-      st.status = 'done'; // complete
+    const { secondsLeft } = this._calcStep(st);
+    if (st.status === 'overtime' || (st.status === 'paused' && secondsLeft <= 0)) {
+      this._completeStep(st);
     } else if (st.status === 'running') {
-      st.status = 'paused';
+      this._pauseStep(st);
     }
     if (this.getRunning().length === 0) this.playing = false;
   }
 
   masterPause() {
     this.flatSteps.forEach(s => {
-      if (s._state.status === 'running' || s._state.status === 'overtime') s._state.status = 'paused';
+      if (s._state.status === 'running' || s._state.status === 'overtime') this._pauseStep(s._state);
     });
     this.playing = false;
   }
@@ -113,14 +169,18 @@ class ChunkEngine {
     this.playing = true;
     const paused = this.getPaused();
     if (paused.length > 0) {
-      paused.forEach(s => { s._state.status = s._state.secondsLeft > 0 ? 'running' : 'overtime'; });
+      paused.forEach(s => {
+        const { secondsLeft } = this._calcStep(s._state);
+        s._state.status = secondsLeft > 0 ? 'running' : 'overtime';
+        s._state.startedAt = Date.now();
+      });
     } else {
       const fst = this.focusedState();
       if (fst && fst.status === 'idle') {
-        fst.status = 'running';
+        this._startStep(fst);
       } else {
         const next = this.flatSteps.find(s => s._state.status === 'idle');
-        if (next) { next._state.status = 'running'; this.focusedIdx = this.flatSteps.indexOf(next); }
+        if (next) { this._startStep(next._state); this.focusedIdx = this.flatSteps.indexOf(next); }
       }
     }
   }
@@ -135,12 +195,12 @@ class ChunkEngine {
     const st = this.focusedState();
     if (!st) return;
     if (st.status === 'running' || st.status === 'overtime') {
-      st.secondsLeft = st.totalSeconds; st.overtimeSeconds = 0; st.status = 'running';
+      st.priorElapsed = 0; st.startedAt = Date.now(); st.status = 'running';
     } else if (st.status === 'paused') {
-      st.secondsLeft = st.totalSeconds; st.overtimeSeconds = 0;
+      st.priorElapsed = 0; st.startedAt = null;
     } else if (st.status === 'idle' || st.status === 'done') {
-      st.secondsLeft = st.totalSeconds; st.overtimeSeconds = 0;
-      st.status = this.playing ? 'running' : 'idle';
+      st.priorElapsed = 0; st.startedAt = null;
+      if (this.playing) { this._startStep(st); } else { st.status = 'idle'; }
     }
   }
 
@@ -202,12 +262,12 @@ class ChunkEngine {
   advanceFocused() {
     const st = this.focusedState();
     if (!st) return;
-    st.status = 'done';
+    this._completeStep(st);
     const nextIdx = this.findNext(this.focusedIdx);
     if (nextIdx !== -1) {
       this.focusedIdx = nextIdx;
       const nst = this.flatSteps[nextIdx]._state;
-      if (this.playing && (nst.status === 'idle')) { nst.status = 'running'; }
+      if (this.playing && nst.status === 'idle') { this._startStep(nst); }
     }
   }
 }
@@ -347,13 +407,14 @@ function updateFocusedDisplay() {
   const st = step?._state;
   if (!st) return;
 
+  const { secondsLeft, overtimeSeconds } = ChunkEngine.calc(st);
   const timerEl = document.getElementById('playerTimer');
   if (st.status === 'overtime') {
-    const m = Math.floor(st.overtimeSeconds / 60), s = st.overtimeSeconds % 60;
+    const m = Math.floor(overtimeSeconds / 60), s = overtimeSeconds % 60;
     timerEl.textContent = '+' + m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0');
     timerEl.classList.add('overtime');
   } else {
-    const m = Math.floor(st.secondsLeft / 60), s = st.secondsLeft % 60;
+    const m = Math.floor(secondsLeft / 60), s = secondsLeft % 60;
     timerEl.textContent = m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0');
     timerEl.classList.remove('overtime');
   }
@@ -384,13 +445,15 @@ function updateChronoRings() {
   const face = document.getElementById('chronoFace');
   if (!stepRing || !st) return;
 
+  const { secondsLeft: sl, overtimeSeconds: ot } = ChunkEngine.calc(st);
+
   if (st.status === 'overtime') {
     stepRing.style.strokeDashoffset = '0';
     overtimeRing.classList.add('active');
-    const pct = Math.min(st.overtimeSeconds / 300, 1);
+    const pct = Math.min(ot / 300, 1);
     overtimeRing.style.strokeDashoffset = OVERTIME_CIRC * (1 - pct);
     updateOvertimeTicks(pct);
-    face.className = st.overtimeSeconds > 60 ? 'chrono-face alerting-escalated' : 'chrono-face alerting';
+    face.className = ot > 60 ? 'chrono-face alerting-escalated' : 'chrono-face alerting';
   } else if (st.status === 'done') {
     stepRing.style.strokeDashoffset = '0';
     overtimeRing.classList.remove('active');
@@ -398,11 +461,11 @@ function updateChronoRings() {
     resetOvertimeTicks();
     face.className = 'chrono-face';
   } else if (st.status === 'paused') {
-    const pct = st.totalSeconds > 0 ? (st.totalSeconds - st.secondsLeft) / st.totalSeconds : 0;
+    const pct = st.totalSeconds > 0 ? (st.totalSeconds - sl) / st.totalSeconds : 0;
     stepRing.style.strokeDashoffset = STEP_CIRC * (1 - pct);
-    if (st.secondsLeft <= 0 && st.overtimeSeconds > 0) {
+    if (sl <= 0 && ot > 0) {
       overtimeRing.classList.add('active');
-      overtimeRing.style.strokeDashoffset = OVERTIME_CIRC * (1 - Math.min(st.overtimeSeconds / 300, 1));
+      overtimeRing.style.strokeDashoffset = OVERTIME_CIRC * (1 - Math.min(ot / 300, 1));
     } else {
       overtimeRing.classList.remove('active');
       overtimeRing.style.strokeDashoffset = OVERTIME_CIRC;
@@ -410,7 +473,7 @@ function updateChronoRings() {
     resetOvertimeTicks();
     face.className = 'chrono-face paused';
   } else {
-    const pct = st.totalSeconds > 0 ? (st.totalSeconds - st.secondsLeft) / st.totalSeconds : 0;
+    const pct = st.totalSeconds > 0 ? (st.totalSeconds - sl) / st.totalSeconds : 0;
     stepRing.style.strokeDashoffset = STEP_CIRC * (1 - pct);
     overtimeRing.classList.remove('active');
     overtimeRing.style.strokeDashoffset = OVERTIME_CIRC;
@@ -468,16 +531,17 @@ function renderPlayerSteps() {
     const sourceHtml = s.sourceChunk
       ? `<div class="psi-source"><span class="link-icon">&#x27C1;</span> ${esc(s.sourceChunk)}</div>` : '';
 
+    const { secondsLeft: sl, overtimeSeconds: ot } = ChunkEngine.calc(st);
     let timerHtml = '';
     if (st.status === 'running') {
-      timerHtml = `<span class="psi-timer">${Math.floor(st.secondsLeft / 60)}:${(st.secondsLeft % 60).toString().padStart(2, '0')}</span>`;
+      timerHtml = `<span class="psi-timer">${Math.floor(sl / 60)}:${(sl % 60).toString().padStart(2, '0')}</span>`;
     } else if (st.status === 'overtime') {
-      timerHtml = `<span class="psi-timer overtime">+${Math.floor(st.overtimeSeconds / 60)}:${(st.overtimeSeconds % 60).toString().padStart(2, '0')}</span>`;
+      timerHtml = `<span class="psi-timer overtime">+${Math.floor(ot / 60)}:${(ot % 60).toString().padStart(2, '0')}</span>`;
     } else if (st.status === 'paused') {
-      if (st.secondsLeft > 0) {
-        timerHtml = `<span class="psi-timer paused">${Math.floor(st.secondsLeft / 60)}:${(st.secondsLeft % 60).toString().padStart(2, '0')}</span>`;
+      if (sl > 0) {
+        timerHtml = `<span class="psi-timer paused">${Math.floor(sl / 60)}:${(sl % 60).toString().padStart(2, '0')}</span>`;
       } else {
-        timerHtml = `<span class="psi-timer paused overtime">+${Math.floor(st.overtimeSeconds / 60)}:${(st.overtimeSeconds % 60).toString().padStart(2, '0')}</span>`;
+        timerHtml = `<span class="psi-timer paused overtime">+${Math.floor(ot / 60)}:${(ot % 60).toString().padStart(2, '0')}</span>`;
       }
     }
 
@@ -517,17 +581,18 @@ function updateDotSidebar() {
     if (!st) return;
     dot.classList.remove('completed', 'current', 'overtime', 'paused');
     const fill = dot.querySelector('.dot-timer-fill');
+    const { secondsLeft: sl } = ChunkEngine.calc(st);
     if (st.status === 'done') {
       dot.classList.add('completed'); if (fill) fill.style.strokeDashoffset = '0';
     } else if (st.status === 'running') {
       dot.classList.add('current');
-      const pct = st.totalSeconds > 0 ? (st.totalSeconds - st.secondsLeft) / st.totalSeconds : 0;
+      const pct = st.totalSeconds > 0 ? (st.totalSeconds - sl) / st.totalSeconds : 0;
       if (fill) fill.style.strokeDashoffset = circ * (1 - pct);
     } else if (st.status === 'overtime') {
       dot.classList.add('current', 'overtime'); if (fill) fill.style.strokeDashoffset = '0';
     } else if (st.status === 'paused') {
       dot.classList.add('paused');
-      const pct = st.totalSeconds > 0 ? (st.totalSeconds - st.secondsLeft) / st.totalSeconds : 0;
+      const pct = st.totalSeconds > 0 ? (st.totalSeconds - sl) / st.totalSeconds : 0;
       if (fill) fill.style.strokeDashoffset = circ * (1 - pct);
     } else {
       if (fill) fill.style.strokeDashoffset = `${circ}`;
@@ -570,7 +635,8 @@ function updatePauseIcon() {
   if (!btn) return;
   const eng = viewingEngine();
   const st = eng?.focusedState();
-  if (st && (st.status === 'overtime' || (st.status === 'paused' && st.secondsLeft <= 0))) {
+  const { secondsLeft: psl } = st ? ChunkEngine.calc(st) : { secondsLeft: 1 };
+  if (st && (st.status === 'overtime' || (st.status === 'paused' && psl <= 0))) {
     btn.innerHTML = `<svg viewBox="0 0 44 44">
       <circle fill="none" stroke="currentColor" stroke-width="2" cx="22" cy="22" r="18" opacity="0.4"/>
       <circle fill="none" stroke="var(--accent)" stroke-width="2.5" cx="22" cy="22" r="18"
@@ -659,7 +725,9 @@ export function kachunkAction() {
   const st = eng.focusedState();
 
   if (st && st.status === 'paused') {
-    st.status = st.secondsLeft > 0 ? 'running' : 'overtime';
+    const { secondsLeft: ksl } = ChunkEngine.calc(st);
+    st.status = ksl > 0 ? 'running' : 'overtime';
+    st.startedAt = Date.now();
     eng.playing = true;
     playUiSound('clickPlay'); vibrateDevice([10, 20, 40]);
     startBgAudio(getEffectiveBg(eng)); requestWakeLock();
@@ -689,7 +757,8 @@ export function smartPause() {
   if (!eng) return;
   const st = eng.focusedState();
 
-  if (st && (st.status === 'overtime' || (st.status === 'paused' && st.secondsLeft <= 0))) {
+  const { secondsLeft: spsl } = st ? ChunkEngine.calc(st) : { secondsLeft: 1 };
+  if (st && (st.status === 'overtime' || (st.status === 'paused' && spsl <= 0))) {
     eng.pauseFocused();
     playUiSound('clickPause'); vibrateDevice([15, 30]);
     document.getElementById('chronoFace').className = 'chrono-face';
@@ -849,6 +918,31 @@ export function selectPlayerBg(key) {
 }
 
 // ─── Drawer query API ───
+
+// ─── Visibility change: recalc immediately when tab returns ───
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && engines.size > 0) {
+    // Check for any missed overtime transitions
+    engines.forEach(eng => {
+      eng.flatSteps.forEach((step, i) => {
+        const st = step._state;
+        if (st.status === 'running') {
+          const { secondsLeft } = ChunkEngine.calc(st);
+          if (secondsLeft <= 0) {
+            st.status = 'overtime';
+            playAlarmSound(getEffectiveAlarm(eng));
+            vibrateDevice();
+          }
+        }
+      });
+    });
+    if (viewingId && getCurrentScreen() === 'playerScreen') {
+      updateFocusedDisplay();
+      renderPlayerSteps();
+      updateKachunkIcon();
+    }
+  }
+});
 
 export function getPlayerChunkId() { return viewingId; }
 export function isPlayerRunning() { return viewingEngine()?.playing || false; }
