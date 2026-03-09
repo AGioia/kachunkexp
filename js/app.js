@@ -118,4 +118,4 @@ if ('serviceWorker' in navigator) {
 // ─── Initial Render ───
 renderHome();
 
-console.log('[KaChunk] Ready');
+// Ready

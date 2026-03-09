@@ -381,7 +381,7 @@ export function playAlarmSound(soundName) {
     const ctx = getAudioCtx();
     const fn = alarmFunctions[soundName || 'chime'];
     if (fn) fn(ctx, getMasterGain());
-  } catch (e) { console.log('Alarm error:', e); }
+  } catch (e) { /* alarm error */ }
 }
 
 export function startBgAudio(soundName) {
@@ -391,7 +391,7 @@ export function startBgAudio(soundName) {
     const ctx = getAudioCtx();
     const fn = bgFunctions[soundName];
     if (fn) bgAudioNodes = fn(ctx, getMasterGain());
-  } catch (e) { console.log('Bg audio error:', e); }
+  } catch (e) { /* bg audio error */ }
 }
 
 export function stopBgAudio() {
@@ -407,7 +407,7 @@ export function playUiSound(soundName) {
     const ctx = getAudioCtx();
     const fn = uiFunctions[soundName];
     if (fn) fn(ctx, getMasterGain());
-  } catch (e) { console.log('UI sound error:', e); }
+  } catch (e) { /* ui sound error */ }
 }
 
 export function previewSound(type, name) {

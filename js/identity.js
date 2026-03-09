@@ -116,7 +116,7 @@ export async function initIdentity() {
         ...keys
       };
       await dbPut(db, IDENTITY_KEY, identity);
-      console.log('[KaChunk] Identity created:', identity.handle);
+      // Identity created silently
     }
     
     _identityCache = identity;
