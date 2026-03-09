@@ -654,6 +654,25 @@
   text-decoration: line-through;
 }
 
+.player-step-item .psi-timer {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 500;
+  flex-shrink: 0;
+  min-width: 36px;
+  text-align: right;
+}
+
+.player-step-item .psi-timer.overtime {
+  color: var(--overtime);
+}
+
+.player-step-item.focused {
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+}
+
 .player-step-item .psi-dur {
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;

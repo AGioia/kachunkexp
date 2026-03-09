@@ -5,9 +5,9 @@
 
 import { initIdentity } from './identity.js';
 import { onNavigate, goHome } from './router.js';
-import { renderHome, toggleChunkFromDrawer, openPlayer, editChunk, chronoTouchStart, chronoTouchEnd } from './home.js';
+import { renderHome, openPlayer, editChunk, chronoDown, chronoUp, chronoCancel } from './home.js';
 import { createNewChunk, openEditor, addStep, removeStep, moveStep, updateStepLabel, updateStepMinutes, toggleSubPreview, openStepSoundPicker, pickStepSound, openChunkPicker, closeChunkPicker, pickSubChunk, selectEditAlarm, selectEditBg, toggleLock, deleteChunkFromEditor } from './editor.js';
-import { startPlayer, openPlayerView, togglePlay, playerNext, playerPrev, jumpToStep, goBackToDrawer, stopAndGoHome, closeCompletion, toggleVoiceInPlayer, toggleBgAudioPicker, closeBgAudioPicker, selectPlayerBg, toggleBreadcrumb, closeBreadcrumb, scrollToStep } from './player.js';
+import { startPlayer, openPlayerView, togglePlay, playerNext, playerPrev, jumpToStep, onStepTap, focusStep, goBackToDrawer, stopAndGoHome, closeCompletion, toggleVoiceInPlayer, toggleBgAudioPicker, closeBgAudioPicker, selectPlayerBg, toggleBreadcrumb, closeBreadcrumb, scrollToStep } from './player.js';
 import { openSchedule, toggleDay, saveSchedule, clearSchedule, initScheduleListeners } from './schedule.js';
 import { openAudioSettings, closeAudioSettings, selectAlarmSound, selectBgSound, toggleSettingSwitch, onVolumeChange } from './audio-settings.js';
 import { closeConfirm, executeConfirm } from './ui.js';
@@ -17,11 +17,11 @@ import { unlockAudio } from './audio.js';
 
 window._kachunk = {
   // Chunk Drawer (Home)
-  toggleChunkFromDrawer,
   openPlayer,
   editChunk,
-  chronoTouchStart,
-  chronoTouchEnd,
+  chronoDown,
+  chronoUp,
+  chronoCancel,
 
   // Internal refs for home.js to call without circular imports
   _startPlayer: startPlayer,
@@ -51,6 +51,8 @@ window._kachunk = {
   playerNext,
   playerPrev,
   jumpToStep,
+  onStepTap,
+  focusStep,
   goBackToDrawer,
   stopAndGoHome,
   closeCompletion,

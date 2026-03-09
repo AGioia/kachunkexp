@@ -119,28 +119,37 @@
   height: 100%;
 }
 
-.ct-icon {
+/* Center dot */
+.ct-dot {
   position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translate(-50%, -50%);
   pointer-events: none;
+  transition: transform 0.15s;
 }
 
-.ct-icon svg {
-  width: 14px;
-  height: 14px;
-  position: static;
-  color: var(--text-3);
+.chrono-thumb:active .ct-dot {
+  transform: translate(-50%, -50%) scale(0.7);
 }
 
-.chrono-thumb.is-active .ct-icon svg {
-  color: var(--accent);
+/* Active fill */
+.ct-fill {
+  transition: stroke-dashoffset 1s linear;
 }
 
-.chrono-thumb.is-playing {
-  box-shadow: 0 0 0 2px var(--accent-glow), 0 0 8px var(--accent-glow);
+/* Paused chunk: pulse the thumb */
+.paused-chunk .chrono-thumb {
+  animation: thumbPulse 2.5s ease-in-out infinite;
+}
+
+@keyframes thumbPulse {
+  0%, 100% { box-shadow: none; }
+  50% { box-shadow: 0 0 0 3px var(--accent-glow), 0 0 10px var(--accent-glow); }
 }
 
 /* Active chunk card highlight */

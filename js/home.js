@@ -1,19 +1,18 @@
 // ═══════════════════════════════════════════════════
 // KaChunk — Chunk Drawer (Home Screen)
-// Chrono thumb = play/pause, card body = open player, arrow = edit
+// Chrono thumb: center dot, pac-man fill, pulse when paused
+// Long-press: reset (if active) or schedule (if idle)
 // ═══════════════════════════════════════════════════
 
 import { loadChunks, getTotalDuration, getFlatStepCount, hasSubChunks } from './store.js';
-import { esc, formatDuration, formatTime12 } from './ui.js';
+import { esc, formatDuration, formatTime12, showToast } from './ui.js';
 import { playUiSound, vibrateDevice } from './audio.js';
+import { getPlayerChunkId, isPlayerRunning, getPlayerProgress } from './player.js';
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-// Simple in-memory play state tracker
-// (Lightweight — the real state lives in the player module)
-const activeChunks = new Set();
-
-export function isChunkActive(id) { return activeChunks.has(id); }
+// Track which chunks the user has activated from the drawer
+const activeChunks = new Map(); // chunkId → { playing: bool }
 
 // ─── Render Home ───
 
@@ -32,35 +31,42 @@ export function renderHome() {
     return;
   }
 
+  // Check if the player module has this chunk loaded
+  const playerChunkId = getPlayerChunkId();
+
   list.innerHTML = chunks.map(c => {
     const totalMin = getTotalDuration(c, chunks);
     const stepCount = getFlatStepCount(c, chunks);
     const hasSubs = hasSubChunks(c);
     const schedText = getScheduleText(c.schedule);
-    const isActive = activeChunks.has(c.id);
+    const active = activeChunks.has(c.id);
+    const playing = active && activeChunks.get(c.id).playing;
+    const progress = (c.id === playerChunkId) ? getPlayerProgress() : 0;
+
+    // Pac-man depletion: full circle = 119.4, deplete as progress increases
+    const dashoffset = 119.4 * (1 - progress);
 
     return `
-      <div class="chunk-card ${isActive ? 'active-chunk' : ''}" data-chunk-id="${c.id}">
+      <div class="chunk-card ${active ? 'active-chunk' : ''} ${playing ? 'playing-chunk' : ''} ${active && !playing ? 'paused-chunk' : ''}" data-chunk-id="${c.id}">
         <div class="card-content">
-          <button class="chrono-thumb ${isActive ? 'is-active' : ''}"
-            ontouchstart="window._kachunk.chronoTouchStart('${c.id}')"
-            ontouchend="window._kachunk.chronoTouchEnd('${c.id}')"
-            onmousedown="window._kachunk.chronoTouchStart('${c.id}')"
-            onmouseup="window._kachunk.chronoTouchEnd('${c.id}')"
+          <button class="chrono-thumb ${active ? 'is-active' : ''}"
+            ontouchstart="window._kachunk.chronoDown('${c.id}')"
+            ontouchend="window._kachunk.chronoUp('${c.id}')"
+            ontouchcancel="window._kachunk.chronoCancel()"
+            onmousedown="window._kachunk.chronoDown('${c.id}')"
+            onmouseup="window._kachunk.chronoUp('${c.id}')"
             onclick="return false"
-            aria-label="${isActive ? 'Pause' : 'Play'} ${esc(c.name)}">
+            aria-label="${c.name}">
             <svg viewBox="0 0 44 44">
               <circle fill="none" stroke="rgba(26,22,19,0.04)" stroke-width="2" cx="22" cy="22" r="19"/>
-              <circle fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" cx="22" cy="22" r="19"
-                stroke-dasharray="119.4" stroke-dashoffset="${119.4 * (1 - Math.min(stepCount / 10, 1))}"
+              ${active ? `<circle class="ct-fill" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" cx="22" cy="22" r="19"
+                stroke-dasharray="119.4" stroke-dashoffset="${dashoffset}"
+                transform="rotate(-90 22 22)" opacity="0.15"/>` : ''}
+              <circle class="ct-progress" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" cx="22" cy="22" r="19"
+                stroke-dasharray="119.4" stroke-dashoffset="${active ? dashoffset : 119.4 * (1 - Math.min(stepCount / 10, 1))}"
                 transform="rotate(-90 22 22)"/>
             </svg>
-            <div class="ct-icon">
-              ${isActive
-                ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="6" width="3" height="12" rx="1"/><rect x="14" y="6" width="3" height="12" rx="1"/></svg>'
-                : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'
-              }
-            </div>
+            <div class="ct-dot"></div>
           </button>
           <div class="card-info" onclick="window._kachunk.openPlayer('${c.id}')">
             <div class="card-name">${esc(c.name || 'Untitled')}${hasSubs ? '<span class="card-has-subchunks"> &#x27C1;</span>' : ''}</div>
@@ -68,7 +74,7 @@ export function renderHome() {
               <span>${stepCount} step${stepCount !== 1 ? 's' : ''}</span>
               <span class="dot">·</span>
               <span>${formatDuration(totalMin)}</span>
-              ${isActive ? '<span class="dot">·</span><span class="card-status playing">Active</span>' : ''}
+              ${active ? `<span class="dot">·</span><span class="card-status ${playing ? 'playing' : 'paused'}">${playing ? 'Active' : 'Paused'}</span>` : ''}
             </div>
             ${schedText ? `<div class="card-schedule"><span class="sched-dot"></span> ${schedText}</div>` : ''}
           </div>
@@ -88,60 +94,84 @@ function getScheduleText(sched) {
   return `${dayStr} at ${timeStr}`;
 }
 
-// ─── Long-press detection for schedule ───
+// ─── Chrono Thumb: press handling ───
 
-let longPressTimer = null;
-let longPressTriggered = false;
+let pressTimer = null;
+let pressChunkId = null;
+let pressTriggered = false;
 
-export function chronoTouchStart(chunkId) {
-  longPressTriggered = false;
-  longPressTimer = setTimeout(() => {
-    longPressTriggered = true;
+export function chronoDown(chunkId) {
+  pressChunkId = chunkId;
+  pressTriggered = false;
+  const active = activeChunks.has(chunkId);
+
+  pressTimer = setTimeout(() => {
+    pressTriggered = true;
     vibrateDevice([30]);
-    const fn = window._kachunk._openSchedule;
-    if (fn) fn(chunkId);
+
+    if (active) {
+      // Long-press on active chunk = reset
+      activeChunks.delete(chunkId);
+      // If player has this chunk, stop it
+      const stopFn = window._kachunk.stopAndGoHome;
+      if (getPlayerChunkId() === chunkId && stopFn) {
+        stopFn();
+      }
+      showToast('Reset');
+      renderHome();
+    } else {
+      // Long-press on idle chunk = schedule
+      const fn = window._kachunk._openSchedule;
+      if (fn) fn(chunkId);
+    }
   }, 500);
 }
 
-export function chronoTouchEnd(chunkId) {
-  clearTimeout(longPressTimer);
-  if (longPressTriggered) return; // schedule already opened
-  // Short tap — toggle play/pause
-  toggleChunkFromDrawer(chunkId);
-}
+export function chronoUp(chunkId) {
+  clearTimeout(pressTimer);
+  if (pressTriggered) return;
 
-// ─── Chrono thumb: toggle play/pause from drawer ───
-
-export function toggleChunkFromDrawer(chunkId) {
-  if (activeChunks.has(chunkId)) {
-    // Pause — remove from active set
-    activeChunks.delete(chunkId);
-    playUiSound('clickPause');
-    vibrateDevice([10]);
+  // Short tap
+  const active = activeChunks.has(chunkId);
+  if (active) {
+    // Toggle play/pause
+    const state = activeChunks.get(chunkId);
+    state.playing = !state.playing;
+    if (state.playing) {
+      playUiSound('clickPlay');
+      vibrateDevice([10, 20, 40]);
+    } else {
+      playUiSound('clickPause');
+      vibrateDevice([10]);
+    }
   } else {
-    // Start/resume
-    activeChunks.add(chunkId);
+    // Start chunk
+    activeChunks.set(chunkId, { playing: true });
     playUiSound('clickPlay');
     vibrateDevice([10, 20, 40]);
-    // Make sure the player module is initialized for this chunk
+    // Initialize in player module
     const fn = window._kachunk._startPlayer;
     if (fn) fn(chunkId);
   }
   renderHome();
 }
 
-// ─── Card body: open player view ───
+export function chronoCancel() {
+  clearTimeout(pressTimer);
+  pressTriggered = false;
+}
+
+// ─── Card body: open player ───
 
 export function openPlayer(chunkId) {
-  // Ensure chunk is active
   if (!activeChunks.has(chunkId)) {
-    activeChunks.add(chunkId);
+    activeChunks.set(chunkId, { playing: true });
   }
   const fn = window._kachunk._startPlayer;
   if (fn) fn(chunkId);
 }
 
-// ─── Arrow: open editor ───
+// ─── Arrow: edit ───
 
 export function editChunk(chunkId) {
   const fn = window._kachunk._openEditor;
