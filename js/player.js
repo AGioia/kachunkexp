@@ -144,16 +144,56 @@ class ChunkEngine {
     }
   }
 
-  findNextSibling(fromIdx) {
+  // Find next step: same-level sibling first, then bubble up, then any remaining idle
+  findNext(fromIdx) {
     const cur = this.flatSteps[fromIdx];
     if (!cur) return -1;
-    const src = cur.sourceChunkId, dep = cur.depth;
+
+    // 1. Try same-level sibling (same sourceChunkId + depth)
+    const sibling = this._findSiblingAfter(fromIdx, cur.sourceChunkId, cur.depth);
+    if (sibling !== -1) return sibling;
+
+    // 2. Bubble up: walk to parent layer and find next sibling there
+    let depth = cur.depth;
+    let scanFrom = fromIdx;
+    while (depth > 0) {
+      // Find the step just past this nested chunk (where depth drops)
+      let exitIdx = -1;
+      for (let i = scanFrom + 1; i < this.flatSteps.length; i++) {
+        if (this.flatSteps[i].depth < depth) { exitIdx = i; break; }
+      }
+      if (exitIdx === -1) { depth--; continue; }
+
+      const parent = this.flatSteps[exitIdx];
+      // Try finding a sibling at the parent's level
+      const parentSibling = this._findSiblingAfter(exitIdx - 1, parent.sourceChunkId, parent.depth);
+      if (parentSibling !== -1) return parentSibling;
+
+      // Keep bubbling
+      depth = parent.depth;
+      scanFrom = exitIdx;
+    }
+
+    // 3. Top level: try next top-level step after current position
+    for (let i = fromIdx + 1; i < this.flatSteps.length; i++) {
+      if (this.flatSteps[i].depth === 0 && this.flatSteps[i]._state.status !== 'done') return i;
+    }
+
+    // 4. Fallback: find ANY remaining idle/paused step anywhere
+    const anyRemaining = this.flatSteps.findIndex(s =>
+      s._state.status === 'idle' || s._state.status === 'paused'
+    );
+    return anyRemaining !== -1 ? anyRemaining : -1;
+  }
+
+  _findSiblingAfter(fromIdx, sourceChunkId, depth) {
     for (let i = fromIdx + 1; i < this.flatSteps.length; i++) {
       const c = this.flatSteps[i];
-      if (src === null && dep === 0) { if (c.depth === 0) return i; }
-      else {
-        if (c.sourceChunkId === src && c.depth === dep) return i;
-        if (c.depth < dep) return -1;
+      if (sourceChunkId === null && depth === 0) {
+        if (c.depth === 0) return i;
+      } else {
+        if (c.sourceChunkId === sourceChunkId && c.depth === depth) return i;
+        if (c.depth < depth) return -1; // exited the nested chunk
       }
     }
     return -1;
@@ -163,11 +203,11 @@ class ChunkEngine {
     const st = this.focusedState();
     if (!st) return;
     st.status = 'done';
-    const nextIdx = this.findNextSibling(this.focusedIdx);
+    const nextIdx = this.findNext(this.focusedIdx);
     if (nextIdx !== -1) {
       this.focusedIdx = nextIdx;
       const nst = this.flatSteps[nextIdx]._state;
-      if (this.playing && nst.status === 'idle') { nst.status = 'running'; }
+      if (this.playing && (nst.status === 'idle')) { nst.status = 'running'; }
     }
   }
 }
