@@ -676,6 +676,53 @@ export function selectPlayerBg(key) {
   }
 }
 
+// ─── Start chunk from drawer (no screen transition) ───
+
+export function startChunkFromDrawer(id) {
+  const chunks = loadChunks();
+  const chunk = chunks.find(c => c.id === id);
+  if (!chunk) return;
+
+  const flat = flattenChunk(chunk, chunks);
+  if (flat.length === 0) return;
+
+  // If already loaded, just resume
+  if (playerChunk && playerChunk.id === id) {
+    if (!playerPlaying) {
+      resumeOrStartNext();
+    }
+    return;
+  }
+
+  // Initialize fresh
+  playerChunk = chunk;
+  playerFlatSteps = flat;
+  playerFlatSteps.forEach(s => initStepState(s));
+  focusedStepIdx = 0;
+
+  // Auto-start the first step
+  playerPlaying = true;
+  playerFlatSteps[0]._state.status = 'running';
+  ensureTickRunning();
+}
+
+export function pauseChunkFromDrawer(id) {
+  if (playerChunk && playerChunk.id === id && playerPlaying) {
+    pauseAll();
+  }
+}
+
+export function resumeChunkFromDrawer(id) {
+  if (playerChunk && playerChunk.id === id && !playerPlaying) {
+    resumeOrStartNext();
+  }
+}
+
+export function getFocusedStepLabel() {
+  const step = playerFlatSteps[focusedStepIdx];
+  return step ? (step.label || 'Step ' + (focusedStepIdx + 1)) : '';
+}
+
 // ─── Exports for drawer to query state ───
 
 export function getPlayerChunkId() {

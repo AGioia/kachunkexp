@@ -157,6 +157,13 @@
   border-color: var(--accent-soft);
 }
 
+.card-step-label {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
 .card-status {
   font-weight: 600;
   font-size: 11px;

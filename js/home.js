@@ -7,7 +7,7 @@
 import { loadChunks, getTotalDuration, getFlatStepCount, hasSubChunks } from './store.js';
 import { esc, formatDuration, formatTime12, showToast } from './ui.js';
 import { playUiSound, vibrateDevice } from './audio.js';
-import { getPlayerChunkId, isPlayerRunning, getPlayerProgress } from './player.js';
+import { getPlayerChunkId, isPlayerRunning, getPlayerProgress, startChunkFromDrawer, pauseChunkFromDrawer, resumeChunkFromDrawer, getFocusedStepLabel } from './player.js';
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -42,6 +42,7 @@ export function renderHome() {
     const active = activeChunks.has(c.id);
     const playing = active && activeChunks.get(c.id).playing;
     const progress = (c.id === playerChunkId) ? getPlayerProgress() : 0;
+    const focusedLabel = (c.id === playerChunkId) ? getFocusedStepLabel() : '';
 
     // Pac-man depletion: full circle = 119.4, deplete as progress increases
     const dashoffset = 119.4 * (1 - progress);
@@ -69,7 +70,7 @@ export function renderHome() {
             <div class="ct-dot"></div>
           </button>
           <div class="card-info" onclick="window._kachunk.openPlayer('${c.id}')">
-            <div class="card-name">${esc(c.name || 'Untitled')}${hasSubs ? '<span class="card-has-subchunks"> &#x27C1;</span>' : ''}</div>
+            <div class="card-name">${esc(c.name || 'Untitled')}${hasSubs ? '<span class="card-has-subchunks"> &#x27C1;</span>' : ''}${active && focusedLabel ? `<span class="card-step-label"> · ${esc(focusedLabel)}</span>` : ''}</div>
             <div class="card-meta">
               <span>${stepCount} step${stepCount !== 1 ? 's' : ''}</span>
               <span class="dot">·</span>
@@ -136,22 +137,23 @@ export function chronoUp(chunkId) {
   if (active) {
     // Toggle play/pause
     const state = activeChunks.get(chunkId);
-    state.playing = !state.playing;
     if (state.playing) {
-      playUiSound('clickPlay');
-      vibrateDevice([10, 20, 40]);
-    } else {
+      state.playing = false;
+      pauseChunkFromDrawer(chunkId);
       playUiSound('clickPause');
       vibrateDevice([10]);
+    } else {
+      state.playing = true;
+      resumeChunkFromDrawer(chunkId);
+      playUiSound('clickPlay');
+      vibrateDevice([10, 20, 40]);
     }
   } else {
-    // Start chunk
+    // Start chunk — initialize and start first step
     activeChunks.set(chunkId, { playing: true });
+    startChunkFromDrawer(chunkId);
     playUiSound('clickPlay');
     vibrateDevice([10, 20, 40]);
-    // Initialize in player module
-    const fn = window._kachunk._startPlayer;
-    if (fn) fn(chunkId);
   }
   renderHome();
 }
