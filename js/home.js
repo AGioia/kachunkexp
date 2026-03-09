@@ -11,6 +11,49 @@ import { getPlayerChunkId, isPlayerRunning, getPlayerProgress, startChunkFromDra
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+// ─── Live update interval for drawer chrono thumbs ───
+let drawerTickInterval = null;
+
+function startDrawerTick() {
+  if (drawerTickInterval) return;
+  drawerTickInterval = setInterval(updateDrawerThumbs, 1000);
+}
+
+function stopDrawerTick() {
+  clearInterval(drawerTickInterval);
+  drawerTickInterval = null;
+}
+
+function updateDrawerThumbs() {
+  const playerChunkId = getPlayerChunkId();
+  if (!playerChunkId) { stopDrawerTick(); return; }
+
+  // Update progress ring on the active card
+  const card = document.querySelector(`.chunk-card[data-chunk-id="${playerChunkId}"]`);
+  if (!card) return;
+
+  const progress = getPlayerProgress();
+  const dashoffset = 119.4 * (1 - progress);
+
+  // Update the progress stroke
+  const progressRing = card.querySelector('.ct-progress');
+  if (progressRing) progressRing.setAttribute('stroke-dashoffset', dashoffset);
+
+  // Update the fill stroke
+  const fillRing = card.querySelector('.ct-fill');
+  if (fillRing) fillRing.setAttribute('stroke-dashoffset', dashoffset);
+
+  // Update step label
+  const label = getFocusedStepLabel();
+  const labelEl = card.querySelector('.card-step-label');
+  if (labelEl && label) labelEl.textContent = ' \u00B7 ' + label;
+
+  // If nothing playing anymore, stop ticking and re-render
+  if (!isPlayerRunning() && !activeChunks.has(playerChunkId)) {
+    stopDrawerTick();
+  }
+}
+
 // Track which chunks the user has activated from the drawer
 const activeChunks = new Map(); // chunkId → { playing: bool }
 
@@ -33,6 +76,9 @@ export function renderHome() {
 
   // Check if the player module has this chunk loaded
   const playerChunkId = getPlayerChunkId();
+
+  // If any chunk is active, start the live update tick
+  if (activeChunks.size > 0) startDrawerTick();
 
   list.innerHTML = chunks.map(c => {
     const totalMin = getTotalDuration(c, chunks);
@@ -147,6 +193,7 @@ export function chronoUp(chunkId) {
       resumeChunkFromDrawer(chunkId);
       playUiSound('clickPlay');
       vibrateDevice([10, 20, 40]);
+      startDrawerTick();
     }
   } else {
     // Start chunk — initialize and start first step
@@ -154,6 +201,7 @@ export function chronoUp(chunkId) {
     startChunkFromDrawer(chunkId);
     playUiSound('clickPlay');
     vibrateDevice([10, 20, 40]);
+    startDrawerTick();
   }
   renderHome();
 }
