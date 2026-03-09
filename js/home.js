@@ -1,13 +1,16 @@
 // ═══════════════════════════════════════════════════
 // KaChunk — Chunk Drawer (Home Screen)
-// Chrono thumb: center dot, pac-man fill, pulse when paused
-// Long-press: reset (if active) or schedule (if idle)
+// Multi-engine aware — each chunk can run independently
 // ═══════════════════════════════════════════════════
 
 import { loadChunks, getTotalDuration, getFlatStepCount, hasSubChunks } from './store.js';
 import { esc, formatDuration, formatTime12, showToast } from './ui.js';
 import { playUiSound, vibrateDevice } from './audio.js';
-import { getPlayerChunkId, isPlayerRunning, getPlayerProgress, startChunkFromDrawer, pauseChunkFromDrawer, resumeChunkFromDrawer, getFocusedStepLabel } from './player.js';
+import {
+  isEngineActive, isEnginePlaying, getPlayerProgress,
+  getFocusedStepLabel, startChunkFromDrawer,
+  pauseChunkFromDrawer, resumeChunkFromDrawer, stopAndGoHome
+} from './player.js';
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -25,37 +28,40 @@ function stopDrawerTick() {
 }
 
 function updateDrawerThumbs() {
-  const playerChunkId = getPlayerChunkId();
-  if (!playerChunkId) { stopDrawerTick(); return; }
+  const chunks = loadChunks();
+  let anyActive = false;
 
-  // Update progress ring on the active card
-  const card = document.querySelector(`.chunk-card[data-chunk-id="${playerChunkId}"]`);
-  if (!card) return;
+  chunks.forEach(c => {
+    if (!isEngineActive(c.id)) return;
+    anyActive = true;
 
-  const progress = getPlayerProgress();
-  const dashoffset = 119.4 * (1 - progress);
+    const card = document.querySelector(`.chunk-card[data-chunk-id="${c.id}"]`);
+    if (!card) return;
 
-  // Update the progress stroke
-  const progressRing = card.querySelector('.ct-progress');
-  if (progressRing) progressRing.setAttribute('stroke-dashoffset', dashoffset);
+    const progress = getPlayerProgress(c.id);
+    const dashoffset = 119.4 * (1 - progress);
 
-  // Update the fill stroke
-  const fillRing = card.querySelector('.ct-fill');
-  if (fillRing) fillRing.setAttribute('stroke-dashoffset', dashoffset);
+    const progressRing = card.querySelector('.ct-progress');
+    if (progressRing) progressRing.setAttribute('stroke-dashoffset', dashoffset);
 
-  // Update step label
-  const label = getFocusedStepLabel();
-  const labelEl = card.querySelector('.card-step-label');
-  if (labelEl && label) labelEl.textContent = ' \u00B7 ' + label;
+    const fillRing = card.querySelector('.ct-fill');
+    if (fillRing) fillRing.setAttribute('stroke-dashoffset', dashoffset);
 
-  // If nothing playing anymore, stop ticking and re-render
-  if (!isPlayerRunning() && !activeChunks.has(playerChunkId)) {
-    stopDrawerTick();
-  }
+    const label = getFocusedStepLabel(c.id);
+    const labelEl = card.querySelector('.card-step-label');
+    if (labelEl && label) labelEl.textContent = ' \u00B7 ' + label;
+
+    // Update status text
+    const statusEl = card.querySelector('.card-status');
+    if (statusEl) {
+      const playing = isEnginePlaying(c.id);
+      statusEl.textContent = playing ? 'Active' : 'Paused';
+      statusEl.className = 'card-status ' + (playing ? 'playing' : 'paused');
+    }
+  });
+
+  if (!anyActive) stopDrawerTick();
 }
-
-// Track which chunks the user has activated from the drawer
-const activeChunks = new Map(); // chunkId → { playing: bool }
 
 // ─── Render Home ───
 
@@ -74,23 +80,20 @@ export function renderHome() {
     return;
   }
 
-  // Check if the player module has this chunk loaded
-  const playerChunkId = getPlayerChunkId();
-
-  // If any chunk is active, start the live update tick
-  if (activeChunks.size > 0) startDrawerTick();
+  let anyActive = false;
 
   list.innerHTML = chunks.map(c => {
     const totalMin = getTotalDuration(c, chunks);
     const stepCount = getFlatStepCount(c, chunks);
     const hasSubs = hasSubChunks(c);
     const schedText = getScheduleText(c.schedule);
-    const active = activeChunks.has(c.id);
-    const playing = active && activeChunks.get(c.id).playing;
-    const progress = (c.id === playerChunkId) ? getPlayerProgress() : 0;
-    const focusedLabel = (c.id === playerChunkId) ? getFocusedStepLabel() : '';
+    const active = isEngineActive(c.id);
+    const playing = isEnginePlaying(c.id);
+    const progress = active ? getPlayerProgress(c.id) : 0;
+    const focusedLabel = active ? getFocusedStepLabel(c.id) : '';
 
-    // Pac-man depletion: full circle = 119.4, deplete as progress increases
+    if (active) anyActive = true;
+
     const dashoffset = 119.4 * (1 - progress);
 
     return `
@@ -132,6 +135,8 @@ export function renderHome() {
       </div>
     `;
   }).join('');
+
+  if (anyActive) startDrawerTick();
 }
 
 function getScheduleText(sched) {
@@ -150,7 +155,7 @@ let pressTriggered = false;
 export function chronoDown(chunkId) {
   pressChunkId = chunkId;
   pressTriggered = false;
-  const active = activeChunks.has(chunkId);
+  const active = isEngineActive(chunkId);
 
   pressTimer = setTimeout(() => {
     pressTriggered = true;
@@ -158,12 +163,7 @@ export function chronoDown(chunkId) {
 
     if (active) {
       // Long-press on active chunk = reset
-      activeChunks.delete(chunkId);
-      // If player has this chunk, stop it
-      const stopFn = window._kachunk.stopAndGoHome;
-      if (getPlayerChunkId() === chunkId && stopFn) {
-        stopFn();
-      }
+      stopAndGoHome();  // will remove the engine
       showToast('Reset');
       renderHome();
     } else {
@@ -178,26 +178,21 @@ export function chronoUp(chunkId) {
   clearTimeout(pressTimer);
   if (pressTriggered) return;
 
-  // Short tap
-  const active = activeChunks.has(chunkId);
+  const active = isEngineActive(chunkId);
   if (active) {
-    // Toggle play/pause
-    const state = activeChunks.get(chunkId);
-    if (state.playing) {
-      state.playing = false;
+    const playing = isEnginePlaying(chunkId);
+    if (playing) {
       pauseChunkFromDrawer(chunkId);
       playUiSound('clickPause');
       vibrateDevice([10]);
     } else {
-      state.playing = true;
       resumeChunkFromDrawer(chunkId);
       playUiSound('clickPlay');
       vibrateDevice([10, 20, 40]);
       startDrawerTick();
     }
   } else {
-    // Start chunk — initialize and start first step
-    activeChunks.set(chunkId, { playing: true });
+    // Start chunk
     startChunkFromDrawer(chunkId);
     playUiSound('clickPlay');
     vibrateDevice([10, 20, 40]);
@@ -214,8 +209,10 @@ export function chronoCancel() {
 // ─── Card body: open player ───
 
 export function openPlayer(chunkId) {
-  if (!activeChunks.has(chunkId)) {
-    activeChunks.set(chunkId, { playing: true });
+  // Ensure engine exists (creates if needed, starts if not started)
+  if (!isEngineActive(chunkId)) {
+    startChunkFromDrawer(chunkId);
+    startDrawerTick();
   }
   const fn = window._kachunk._startPlayer;
   if (fn) fn(chunkId);

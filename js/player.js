@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════
-// KaChunk — Player Engine
-// Parallel step model: each step runs its own timer independently
+// KaChunk — Multi-Engine Player
+// Multiple chunks run simultaneously, single player view switches between them
 // ═══════════════════════════════════════════════════
 
 import { loadChunks, flattenChunk } from './store.js';
@@ -15,77 +15,259 @@ import {
   BG_SOUNDS
 } from './audio.js';
 
-let playerChunk = null;
-let playerFlatSteps = [];  // each step gets: { ...stepData, _state }
-let focusedStepIdx = 0;    // which step the chrono face shows (focused, not "current")
-let playerPlaying = false;
-let tickInterval = null;
+// ─── Ring Constants ───
+const MASTER_RADIUS = 122, MASTER_CIRC = 2 * Math.PI * MASTER_RADIUS;
+const SUBCHUNK_RADIUS = 115, SUBCHUNK_CIRC = 2 * Math.PI * SUBCHUNK_RADIUS;
+const STEP_RADIUS = 108, STEP_CIRC = 2 * Math.PI * STEP_RADIUS;
+const OVERTIME_RADIUS = 101, OVERTIME_CIRC = 2 * Math.PI * OVERTIME_RADIUS;
 
-// Ring radii must match the SVG
-const MASTER_RADIUS = 122;
-const MASTER_CIRC = 2 * Math.PI * MASTER_RADIUS;
-const SUBCHUNK_RADIUS = 115;
-const SUBCHUNK_CIRC = 2 * Math.PI * SUBCHUNK_RADIUS;
-const STEP_RADIUS = 108;
-const STEP_CIRC = 2 * Math.PI * STEP_RADIUS;
-const OVERTIME_RADIUS = 101;
-const OVERTIME_CIRC = 2 * Math.PI * OVERTIME_RADIUS;
+// ═══════════════════════════════════════════════════
+// ChunkEngine — one per active chunk
+// ═══════════════════════════════════════════════════
 
-// ─── Step State ───
-// Each step in playerFlatSteps gets a _state object:
-// { status: 'idle'|'paused'|'running'|'overtime'|'done', secondsLeft, totalSeconds, overtimeSeconds }
-// 'paused' preserves secondsLeft — step has been started but is not ticking
+class ChunkEngine {
+  constructor(chunk, flatSteps) {
+    this.chunk = chunk;
+    this.id = chunk.id;
+    this.flatSteps = flatSteps;
+    this.focusedIdx = 0;
+    this.playing = false;
+    flatSteps.forEach(s => this._initStep(s));
+  }
 
-function initStepState(step) {
-  const total = Math.round((parseFloat(step.minutes) || 1) * 60);
-  step._state = {
-    status: 'idle',
-    totalSeconds: total,
-    secondsLeft: total,
-    overtimeSeconds: 0,
-  };
+  _initStep(step) {
+    const total = Math.round((parseFloat(step.minutes) || 1) * 60);
+    step._state = { status: 'idle', totalSeconds: total, secondsLeft: total, overtimeSeconds: 0 };
+  }
+
+  getRunning()  { return this.flatSteps.filter(s => s._state.status === 'running' || s._state.status === 'overtime'); }
+  getPaused()   { return this.flatSteps.filter(s => s._state.status === 'paused'); }
+  getOvertime() { return this.flatSteps.filter(s => s._state.status === 'overtime'); }
+  allDone()     { return this.flatSteps.every(s => s._state.status === 'done'); }
+
+  totalDurationSecs() {
+    return this.flatSteps.reduce((sum, s) => sum + Math.round((parseFloat(s.minutes) || 1) * 60), 0);
+  }
+
+  totalElapsed() {
+    let e = 0;
+    this.flatSteps.forEach(s => {
+      const st = s._state;
+      if (st.status !== 'idle') e += (st.totalSeconds - st.secondsLeft) + st.overtimeSeconds;
+    });
+    return e;
+  }
+
+  progress() {
+    const t = this.totalDurationSecs();
+    return t > 0 ? this.totalElapsed() / t : 0;
+  }
+
+  focusedStep() { return this.flatSteps[this.focusedIdx]; }
+  focusedState() { return this.focusedStep()?._state; }
+  focusedLabel() { const s = this.focusedStep(); return s ? (s.label || 'Step ' + (this.focusedIdx + 1)) : ''; }
+
+  // Tick all running steps. Returns array of step indices that just entered overtime.
+  tick() {
+    if (!this.playing) return [];
+    const newOT = [];
+    this.flatSteps.forEach((step, i) => {
+      const st = step._state;
+      if (st.status === 'running') {
+        st.secondsLeft--;
+        if (st.secondsLeft <= 0) {
+          st.status = 'overtime'; st.secondsLeft = 0; st.overtimeSeconds = 0;
+          newOT.push(i);
+        }
+      } else if (st.status === 'overtime') {
+        st.overtimeSeconds++;
+      }
+    });
+    return newOT;
+  }
+
+  startFocused() {
+    const st = this.focusedState();
+    if (st && st.status === 'idle') { st.status = 'running'; this.playing = true; }
+  }
+
+  pauseFocused() {
+    const st = this.focusedState();
+    if (!st) return;
+    if (st.status === 'overtime' || (st.status === 'paused' && st.secondsLeft <= 0)) {
+      st.status = 'done'; // complete
+    } else if (st.status === 'running') {
+      st.status = 'paused';
+    }
+    if (this.getRunning().length === 0) this.playing = false;
+  }
+
+  masterPause() {
+    this.flatSteps.forEach(s => {
+      if (s._state.status === 'running' || s._state.status === 'overtime') s._state.status = 'paused';
+    });
+    this.playing = false;
+  }
+
+  resumeOrStartNext() {
+    this.playing = true;
+    const paused = this.getPaused();
+    if (paused.length > 0) {
+      paused.forEach(s => { s._state.status = s._state.secondsLeft > 0 ? 'running' : 'overtime'; });
+    } else {
+      const fst = this.focusedState();
+      if (fst && fst.status === 'idle') {
+        fst.status = 'running';
+      } else {
+        const next = this.flatSteps.find(s => s._state.status === 'idle');
+        if (next) { next._state.status = 'running'; this.focusedIdx = this.flatSteps.indexOf(next); }
+      }
+    }
+  }
+
+  masterReset() {
+    this.flatSteps.forEach(s => this._initStep(s));
+    this.focusedIdx = 0;
+    this.playing = false;
+  }
+
+  restartFocused() {
+    const st = this.focusedState();
+    if (!st) return;
+    if (st.status === 'running' || st.status === 'overtime') {
+      st.secondsLeft = st.totalSeconds; st.overtimeSeconds = 0; st.status = 'running';
+    } else if (st.status === 'paused') {
+      st.secondsLeft = st.totalSeconds; st.overtimeSeconds = 0;
+    } else if (st.status === 'idle' || st.status === 'done') {
+      st.secondsLeft = st.totalSeconds; st.overtimeSeconds = 0;
+      st.status = this.playing ? 'running' : 'idle';
+    }
+  }
+
+  findNextSibling(fromIdx) {
+    const cur = this.flatSteps[fromIdx];
+    if (!cur) return -1;
+    const src = cur.sourceChunkId, dep = cur.depth;
+    for (let i = fromIdx + 1; i < this.flatSteps.length; i++) {
+      const c = this.flatSteps[i];
+      if (src === null && dep === 0) { if (c.depth === 0) return i; }
+      else {
+        if (c.sourceChunkId === src && c.depth === dep) return i;
+        if (c.depth < dep) return -1;
+      }
+    }
+    return -1;
+  }
+
+  advanceFocused() {
+    const st = this.focusedState();
+    if (!st) return;
+    st.status = 'done';
+    const nextIdx = this.findNextSibling(this.focusedIdx);
+    if (nextIdx !== -1) {
+      this.focusedIdx = nextIdx;
+      const nst = this.flatSteps[nextIdx]._state;
+      if (this.playing && nst.status === 'idle') { nst.status = 'running'; }
+    }
+  }
 }
 
-function getRunningSteps() {
-  return playerFlatSteps.filter(s => s._state && (s._state.status === 'running' || s._state.status === 'overtime'));
+// ═══════════════════════════════════════════════════
+// Engine Registry — multiple engines, single tick
+// ═══════════════════════════════════════════════════
+
+const engines = new Map();   // chunkId → ChunkEngine
+let viewingId = null;        // which engine the player screen is showing
+let globalTickInterval = null;
+
+function viewingEngine() { return viewingId ? engines.get(viewingId) : null; }
+
+function ensureGlobalTick() {
+  if (globalTickInterval) return;
+  globalTickInterval = setInterval(globalTick, 1000);
 }
 
-function getPausedSteps() {
-  return playerFlatSteps.filter(s => s._state && s._state.status === 'paused');
+function stopGlobalTickIfIdle() {
+  const anyPlaying = [...engines.values()].some(e => e.playing);
+  if (!anyPlaying && globalTickInterval) {
+    clearInterval(globalTickInterval);
+    globalTickInterval = null;
+    stopBgAudio();
+    releaseWakeLock();
+  }
 }
 
-function getOvertimeSteps() {
-  return playerFlatSteps.filter(s => s._state && s._state.status === 'overtime');
+function getOrCreateEngine(chunkId) {
+  if (engines.has(chunkId)) return engines.get(chunkId);
+  const chunks = loadChunks();
+  const chunk = chunks.find(c => c.id === chunkId);
+  if (!chunk) return null;
+  const flat = flattenChunk(chunk, chunks);
+  if (flat.length === 0) return null;
+  const eng = new ChunkEngine(chunk, flat);
+  engines.set(chunkId, eng);
+  return eng;
 }
 
-function areAllDone() {
-  return playerFlatSteps.every(s => s._state && s._state.status === 'done');
+function getEffectiveAlarm(eng) {
+  const s = loadAudioSettings();
+  if (eng) {
+    const step = eng.focusedStep();
+    if (step?.sound && step.sound !== 'default') return step.sound;
+    if (eng.chunk.audioAlarm && eng.chunk.audioAlarm !== 'default') return eng.chunk.audioAlarm;
+  }
+  return s.alarm || 'chime';
 }
 
-function isEverythingPaused() {
-  // True if at least one step has been started (paused/running/overtime/done) but nothing is running
-  const started = playerFlatSteps.some(s => s._state && s._state.status !== 'idle');
-  const running = getRunningSteps().length;
-  return started && running === 0 && !areAllDone();
+function getEffectiveBg(eng) {
+  const s = loadAudioSettings();
+  if (eng?.chunk.audioBg && eng.chunk.audioBg !== 'default') return eng.chunk.audioBg;
+  return s.bg || 'none';
 }
 
-function getTotalElapsed() {
-  let elapsed = 0;
-  playerFlatSteps.forEach(s => {
-    if (!s._state) return;
-    const st = s._state;
-    if (st.status === 'done' || st.status === 'running' || st.status === 'overtime' || st.status === 'paused') {
-      elapsed += (st.totalSeconds - st.secondsLeft) + st.overtimeSeconds;
+// ─── Global Tick ───
+
+function globalTick() {
+  let anyAlarm = false;
+  engines.forEach((eng) => {
+    const newOT = eng.tick();
+    if (newOT.length > 0) {
+      anyAlarm = true;
+      // If this is the viewed engine, update UI
+      if (eng.id === viewingId) {
+        if (newOT.includes(eng.focusedIdx)) {
+          document.getElementById('kachunkBtn')?.classList.add('ready-pulse');
+        }
+        const fst = eng.focusedState()?.status;
+        if (fst === 'idle' || fst === 'done') {
+          eng.focusedIdx = newOT[0];
+        }
+      }
+    }
+    if (eng.allDone() && eng.playing) {
+      eng.playing = false;
+      if (eng.id === viewingId) showCompletion(eng);
     }
   });
-  return elapsed;
+
+  if (anyAlarm) {
+    const veng = viewingEngine();
+    playAlarmSound(getEffectiveAlarm(veng));
+    vibrateDevice();
+  }
+
+  // Update player screen if visible
+  if (viewingId && getCurrentScreen() === 'playerScreen') {
+    updateFocusedDisplay();
+    renderPlayerSteps();
+  }
+
+  stopGlobalTickIfIdle();
 }
 
-function getTotalDurationSecs() {
-  return playerFlatSteps.reduce((sum, s) => sum + Math.round((parseFloat(s.minutes) || 1) * 60), 0);
-}
-
-// ─── Chronometer Tick Marks ───
+// ═══════════════════════════════════════════════════
+// Player Screen UI — renders whichever engine is viewed
+// ═══════════════════════════════════════════════════
 
 function renderChronoTicks() {
   const g = document.getElementById('chronoTicks');
@@ -102,127 +284,66 @@ function renderChronoTicks() {
   g.innerHTML = html;
 }
 
-// ─── Effective Audio ───
-
-function getEffectiveAlarm() {
-  const s = loadAudioSettings();
-  if (playerChunk) {
-    const step = playerFlatSteps[focusedStepIdx];
-    if (step && step.sound && step.sound !== 'default') return step.sound;
-    if (playerChunk.audioAlarm && playerChunk.audioAlarm !== 'default') return playerChunk.audioAlarm;
-  }
-  return s.alarm || 'chime';
-}
-
-function getEffectiveBg() {
-  const s = loadAudioSettings();
-  if (playerChunk) {
-    if (playerChunk.audioBg && playerChunk.audioBg !== 'default') return playerChunk.audioBg;
-  }
-  return s.bg || 'none';
-}
-
-// ─── Start / Open Player ───
-
-export function startPlayer(id) {
-  const chunks = loadChunks();
-  const chunk = chunks.find(c => c.id === id);
-  if (!chunk) return;
-
-  const flat = flattenChunk(chunk, chunks);
-  if (flat.length === 0) return;
-
-  // If already viewing this chunk, just show screen
-  if (playerChunk && playerChunk.id === id) {
-    showScreen('playerScreen');
-    return;
-  }
-
-  // New chunk
-  playerChunk = chunk;
-  playerFlatSteps = flat;
-  playerFlatSteps.forEach(s => initStepState(s));
-  focusedStepIdx = 0;
-  playerPlaying = false;
-
+function switchPlayerView(eng) {
+  viewingId = eng.id;
   renderChronoTicks();
   renderDotSidebar();
   renderPlayerSteps();
   updateFocusedDisplay();
-
-  document.getElementById('playerTitle').textContent = playerChunk.name;
+  document.getElementById('playerTitle').textContent = eng.chunk.name;
   document.getElementById('breadcrumbBar').classList.remove('expanded');
   updateKachunkIcon();
-
   const s = loadAudioSettings();
   const voiceBtn = document.getElementById('voiceToggleBtn');
   if (voiceBtn) voiceBtn.style.opacity = s.voice ? '1' : '0.4';
-
   document.getElementById('chronoFace').className = 'chrono-face';
   document.getElementById('kachunkBtn').classList.remove('ready-pulse', 'snapping');
-
-  showScreen('playerScreen');
 }
-
-export function openPlayerView(id) {
-  if (playerChunk && playerChunk.id === id) {
-    showScreen('playerScreen');
-    return;
-  }
-  startPlayer(id);
-}
-
-// ─── Update focused step display (chrono center) ───
 
 function updateFocusedDisplay() {
-  const step = playerFlatSteps[focusedStepIdx];
-  if (!step || !step._state) return;
-  const st = step._state;
+  const eng = viewingEngine();
+  if (!eng) return;
+  const step = eng.focusedStep();
+  const st = step?._state;
+  if (!st) return;
 
-  // Timer display
   const timerEl = document.getElementById('playerTimer');
   if (st.status === 'overtime') {
-    const m = Math.floor(st.overtimeSeconds / 60);
-    const s = st.overtimeSeconds % 60;
+    const m = Math.floor(st.overtimeSeconds / 60), s = st.overtimeSeconds % 60;
     timerEl.textContent = '+' + m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0');
     timerEl.classList.add('overtime');
   } else {
-    const m = Math.floor(st.secondsLeft / 60);
-    const s = st.secondsLeft % 60;
+    const m = Math.floor(st.secondsLeft / 60), s = st.secondsLeft % 60;
     timerEl.textContent = m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0');
     timerEl.classList.remove('overtime');
   }
 
-  document.getElementById('playerStepLabel').textContent = step.label || 'Step ' + (focusedStepIdx + 1);
+  document.getElementById('playerStepLabel').textContent = eng.focusedLabel();
   updatePauseIcon();
 
-  // Count running/paused/total
-  const running = getRunningSteps().length;
-  const paused = getPausedSteps().length;
-  const overtime = getOvertimeSteps().length;
-  const done = playerFlatSteps.filter(s => s._state?.status === 'done').length;
-  let countText = `${done}/${playerFlatSteps.length} done`;
-  if (running > 0) countText += ` · ${running} active`;
-  if (paused > 0) countText += ` · ${paused} paused`;
-  if (overtime > 0) countText += ` · ${overtime} overtime`;
-  document.getElementById('playerStepCount').textContent = countText;
+  const running = eng.getRunning().length, paused = eng.getPaused().length;
+  const overtime = eng.getOvertime().length;
+  const done = eng.flatSteps.filter(s => s._state.status === 'done').length;
+  let t = `${done}/${eng.flatSteps.length} done`;
+  if (running > 0) t += ` · ${running} active`;
+  if (paused > 0) t += ` · ${paused} paused`;
+  if (overtime > 0) t += ` · ${overtime} overtime`;
+  document.getElementById('playerStepCount').textContent = t;
 
   updateChronoRings();
   updateBreadcrumb();
 }
 
-// ─── Chrono Rings ───
-
 function updateChronoRings() {
-  const step = playerFlatSteps[focusedStepIdx];
+  const eng = viewingEngine();
+  if (!eng) return;
+  const step = eng.focusedStep();
   const st = step?._state;
   const stepRing = document.getElementById('ringProgress');
   const overtimeRing = document.getElementById('ringOvertime');
   const face = document.getElementById('chronoFace');
-
   if (!stepRing || !st) return;
 
-  // Step ring
   if (st.status === 'overtime') {
     stepRing.style.strokeDashoffset = '0';
     overtimeRing.classList.add('active');
@@ -237,13 +358,11 @@ function updateChronoRings() {
     resetOvertimeTicks();
     face.className = 'chrono-face';
   } else if (st.status === 'paused') {
-    // Show frozen progress
     const pct = st.totalSeconds > 0 ? (st.totalSeconds - st.secondsLeft) / st.totalSeconds : 0;
     stepRing.style.strokeDashoffset = STEP_CIRC * (1 - pct);
     if (st.secondsLeft <= 0 && st.overtimeSeconds > 0) {
       overtimeRing.classList.add('active');
-      const otPct = Math.min(st.overtimeSeconds / 300, 1);
-      overtimeRing.style.strokeDashoffset = OVERTIME_CIRC * (1 - otPct);
+      overtimeRing.style.strokeDashoffset = OVERTIME_CIRC * (1 - Math.min(st.overtimeSeconds / 300, 1));
     } else {
       overtimeRing.classList.remove('active');
       overtimeRing.style.strokeDashoffset = OVERTIME_CIRC;
@@ -262,26 +381,20 @@ function updateChronoRings() {
   // Master ring
   const masterRing = document.getElementById('ringMaster');
   if (masterRing) {
-    const totalSecs = getTotalDurationSecs();
-    const elapsed = getTotalElapsed();
-    const masterPct = totalSecs > 0 ? Math.min(elapsed / totalSecs, 1) : 0;
+    const masterPct = eng.totalDurationSecs() > 0 ? Math.min(eng.totalElapsed() / eng.totalDurationSecs(), 1) : 0;
     masterRing.style.strokeDashoffset = MASTER_CIRC * (1 - masterPct);
   }
 
   // Sub-chunk ring
   const subRing = document.getElementById('ringSubchunk');
   const subTrack = document.getElementById('ringSubchunkTrack');
-  const currentStep = playerFlatSteps[focusedStepIdx];
-  if (subRing && subTrack && currentStep && currentStep.depth > 0 && currentStep.sourceChunkId) {
-    subRing.style.opacity = '1';
-    subTrack.style.opacity = '1';
-    const subSteps = playerFlatSteps.filter(s => s.sourceChunkId === currentStep.sourceChunkId);
-    const subDone = subSteps.filter(s => s._state?.status === 'done').length;
-    const subPct = subSteps.length > 0 ? subDone / subSteps.length : 0;
-    subRing.style.strokeDashoffset = SUBCHUNK_CIRC * (1 - subPct);
+  if (subRing && subTrack && step.depth > 0 && step.sourceChunkId) {
+    subRing.style.opacity = '1'; subTrack.style.opacity = '1';
+    const subSteps = eng.flatSteps.filter(s => s.sourceChunkId === step.sourceChunkId);
+    const subDone = subSteps.filter(s => s._state.status === 'done').length;
+    subRing.style.strokeDashoffset = SUBCHUNK_CIRC * (1 - (subSteps.length > 0 ? subDone / subSteps.length : 0));
   } else if (subRing && subTrack) {
-    subRing.style.opacity = '0';
-    subTrack.style.opacity = '0';
+    subRing.style.opacity = '0'; subTrack.style.opacity = '0';
   }
 
   updateDotSidebar();
@@ -290,354 +403,138 @@ function updateChronoRings() {
 function updateOvertimeTicks(pct) {
   const ticks = document.querySelectorAll('#chronoTicks .tick');
   const count = Math.floor(pct * 60);
-  ticks.forEach((tick, i) => {
-    tick.classList.toggle('overtime', i < count);
-  });
+  ticks.forEach((tick, i) => { tick.classList.toggle('overtime', i < count); });
 }
 
 function resetOvertimeTicks() {
   document.querySelectorAll('#chronoTicks .tick.overtime').forEach(t => t.classList.remove('overtime'));
 }
 
-// updatePlayPauseIcon removed — pause button is always pause, kachunk icon is dynamic
-
-// ─── Step List ───
+// ─── Step List (no auto-scroll to chrono) ───
 
 function renderPlayerSteps() {
+  const eng = viewingEngine();
+  if (!eng) return;
   const container = document.getElementById('playerStepsList');
-  container.innerHTML = playerFlatSteps.map((s, i) => {
-    const st = s._state || {};
+  container.innerHTML = eng.flatSteps.map((s, i) => {
+    const st = s._state;
     let cls = '';
     if (st.status === 'done') cls = 'completed';
     else if (st.status === 'running') cls = 'current';
     else if (st.status === 'overtime') cls = 'current overtime';
     else if (st.status === 'paused') cls = 'paused';
-    if (i === focusedStepIdx) cls += ' focused';
+    if (i === eng.focusedIdx) cls += ' focused';
 
     const sourceHtml = s.sourceChunk
-      ? `<div class="psi-source"><span class="link-icon">&#x27C1;</span> ${esc(s.sourceChunk)}</div>`
-      : '';
+      ? `<div class="psi-source"><span class="link-icon">&#x27C1;</span> ${esc(s.sourceChunk)}</div>` : '';
 
-    // Show timer for running/overtime/paused steps
     let timerHtml = '';
     if (st.status === 'running') {
-      const m = Math.floor(st.secondsLeft / 60);
-      const sec = st.secondsLeft % 60;
-      timerHtml = `<span class="psi-timer">${m}:${sec.toString().padStart(2, '0')}</span>`;
+      timerHtml = `<span class="psi-timer">${Math.floor(st.secondsLeft / 60)}:${(st.secondsLeft % 60).toString().padStart(2, '0')}</span>`;
     } else if (st.status === 'overtime') {
-      const m = Math.floor(st.overtimeSeconds / 60);
-      const sec = st.overtimeSeconds % 60;
-      timerHtml = `<span class="psi-timer overtime">+${m}:${sec.toString().padStart(2, '0')}</span>`;
+      timerHtml = `<span class="psi-timer overtime">+${Math.floor(st.overtimeSeconds / 60)}:${(st.overtimeSeconds % 60).toString().padStart(2, '0')}</span>`;
     } else if (st.status === 'paused') {
       if (st.secondsLeft > 0) {
-        const m = Math.floor(st.secondsLeft / 60);
-        const sec = st.secondsLeft % 60;
-        timerHtml = `<span class="psi-timer paused">${m}:${sec.toString().padStart(2, '0')}</span>`;
+        timerHtml = `<span class="psi-timer paused">${Math.floor(st.secondsLeft / 60)}:${(st.secondsLeft % 60).toString().padStart(2, '0')}</span>`;
       } else {
-        const m = Math.floor(st.overtimeSeconds / 60);
-        const sec = st.overtimeSeconds % 60;
-        timerHtml = `<span class="psi-timer paused overtime">+${m}:${sec.toString().padStart(2, '0')}</span>`;
+        timerHtml = `<span class="psi-timer paused overtime">+${Math.floor(st.overtimeSeconds / 60)}:${(st.overtimeSeconds % 60).toString().padStart(2, '0')}</span>`;
       }
     }
 
-    const statusIcon = st.status === 'done' ? '&#x2713;'
+    const icon = st.status === 'done' ? '&#x2713;'
       : (st.status === 'running' || st.status === 'overtime') ? '&#x25CF;'
-      : st.status === 'paused' ? '&#x25CB;'  // hollow circle for paused
-      : (i + 1);
+      : st.status === 'paused' ? '&#x25CB;' : (i + 1);
 
-    return `
-      <div class="player-step-item ${cls}" onclick="window._kachunk.onStepTap(${i})">
-        <div class="psi-num">${statusIcon}</div>
-        <div class="psi-label-wrap">
-          ${sourceHtml}
-          <div class="psi-label">${esc(s.label || 'Step ' + (i + 1))}</div>
-        </div>
-        ${timerHtml}
-        <div class="psi-dur">${s.minutes}m</div>
-      </div>
-    `;
+    return `<div class="player-step-item ${cls}" onclick="window._kachunk.onStepTap(${i})">
+        <div class="psi-num">${icon}</div>
+        <div class="psi-label-wrap">${sourceHtml}<div class="psi-label">${esc(s.label || 'Step ' + (i + 1))}</div></div>
+        ${timerHtml}<div class="psi-dur">${s.minutes}m</div>
+      </div>`;
   }).join('');
 }
 
 // ─── Dot Sidebar ───
 
 function renderDotSidebar() {
+  const eng = viewingEngine();
   const track = document.getElementById('dotSidebarTrack');
-  if (!track || playerFlatSteps.length === 0) return;
-  track.innerHTML = playerFlatSteps.map((step, i) => {
-    const depthClass = step.depth > 0 ? ` depth-${Math.min(step.depth, 3)}` : '';
-    return `<div class="dot-step${depthClass}" data-dot-idx="${i}" onclick="window._kachunk.focusStep(${i})">
+  if (!track || !eng) return;
+  track.innerHTML = eng.flatSteps.map((step, i) => {
+    const dc = step.depth > 0 ? ` depth-${Math.min(step.depth, 3)}` : '';
+    return `<div class="dot-step${dc}" data-dot-idx="${i}" onclick="window._kachunk.focusStep(${i})">
       <div class="dot-timer"><svg viewBox="0 0 10 10"><circle class="dot-timer-fill" cx="5" cy="5" r="3" stroke-dasharray="${2 * Math.PI * 3}" stroke-dashoffset="${2 * Math.PI * 3}" transform="rotate(-90 5 5)"/></svg></div>
     </div>`;
   }).join('');
 }
 
 function updateDotSidebar() {
+  const eng = viewingEngine();
+  if (!eng) return;
   const dots = document.querySelectorAll('.dot-step');
+  const circ = 2 * Math.PI * 3;
   dots.forEach((dot, i) => {
-    const st = playerFlatSteps[i]?._state;
+    const st = eng.flatSteps[i]?._state;
     if (!st) return;
     dot.classList.remove('completed', 'current', 'overtime', 'paused');
-    const timerFill = dot.querySelector('.dot-timer-fill');
-    const circ = 2 * Math.PI * 3;
-
+    const fill = dot.querySelector('.dot-timer-fill');
     if (st.status === 'done') {
-      dot.classList.add('completed');
-      if (timerFill) timerFill.style.strokeDashoffset = '0';
+      dot.classList.add('completed'); if (fill) fill.style.strokeDashoffset = '0';
     } else if (st.status === 'running') {
       dot.classList.add('current');
       const pct = st.totalSeconds > 0 ? (st.totalSeconds - st.secondsLeft) / st.totalSeconds : 0;
-      if (timerFill) timerFill.style.strokeDashoffset = circ * (1 - pct);
+      if (fill) fill.style.strokeDashoffset = circ * (1 - pct);
     } else if (st.status === 'overtime') {
-      dot.classList.add('current', 'overtime');
-      if (timerFill) timerFill.style.strokeDashoffset = '0';
+      dot.classList.add('current', 'overtime'); if (fill) fill.style.strokeDashoffset = '0';
     } else if (st.status === 'paused') {
       dot.classList.add('paused');
       const pct = st.totalSeconds > 0 ? (st.totalSeconds - st.secondsLeft) / st.totalSeconds : 0;
-      if (timerFill) timerFill.style.strokeDashoffset = circ * (1 - pct);
+      if (fill) fill.style.strokeDashoffset = circ * (1 - pct);
     } else {
-      if (timerFill) timerFill.style.strokeDashoffset = `${circ}`;
+      if (fill) fill.style.strokeDashoffset = `${circ}`;
     }
   });
-  const currentDot = document.querySelector('.dot-step.current');
-  if (currentDot) currentDot.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  // Don't auto-scroll — respect user's scroll position
 }
 
 // ─── Breadcrumb ───
 
 function updateBreadcrumb() {
-  const currentStep = playerFlatSteps[focusedStepIdx];
+  const eng = viewingEngine();
+  if (!eng) return;
+  const step = eng.focusedStep();
   const currentEl = document.getElementById('breadcrumbCurrent');
   const expandedEl = document.getElementById('breadcrumbExpanded');
-  if (!currentStep || !playerChunk) return;
+  if (!step || !eng.chunk) return;
 
-  const crumbs = [{ name: playerChunk.name, depth: 0 }];
-  if (currentStep.sourceChunk) {
-    crumbs.push({ name: currentStep.sourceChunk, depth: currentStep.depth });
-  }
+  const crumbs = [{ name: eng.chunk.name, depth: 0 }];
+  if (step.sourceChunk) crumbs.push({ name: step.sourceChunk, depth: step.depth });
   currentEl.textContent = crumbs.length <= 1 ? crumbs[0].name : crumbs.map(c => c.name).join(' > ');
   expandedEl.innerHTML = crumbs.map((c, i) => {
     const isActive = i === crumbs.length - 1;
     return `<button class="breadcrumb-item ${isActive ? 'bc-active' : ''}" onclick="window._kachunk.closeBreadcrumb()">
-      <span class="bc-depth">${i}</span>
-      <span class="bc-name">${esc(c.name)}</span>
-    </button>`;
+      <span class="bc-depth">${i}</span><span class="bc-name">${esc(c.name)}</span></button>`;
   }).join('');
 }
 
-export function toggleBreadcrumb() {
-  document.getElementById('breadcrumbBar').classList.toggle('expanded');
-}
-
-export function closeBreadcrumb() {
-  document.getElementById('breadcrumbBar').classList.remove('expanded');
-}
-
+export function toggleBreadcrumb() { document.getElementById('breadcrumbBar').classList.toggle('expanded'); }
+export function closeBreadcrumb() { document.getElementById('breadcrumbBar').classList.remove('expanded'); }
 export function scrollToStep(idx) {
-  const stepItems = document.querySelectorAll('.player-step-item');
-  if (stepItems[idx]) stepItems[idx].scrollIntoView({ block: 'center', behavior: 'smooth' });
+  const items = document.querySelectorAll('.player-step-item');
+  if (items[idx]) items[idx].scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 
-// ─── Restart Button (prev/back in control bar) ───
-// Tap = restart focused step timer. Long press = master reset all.
-
-let restartTimer = null;
-let restartTriggered = false;
-
-export function restartDown() {
-  restartTriggered = false;
-  restartTimer = setTimeout(() => {
-    restartTriggered = true;
-    vibrateDevice([50, 30, 50]);
-    // Master reset: all steps back to idle
-    playerFlatSteps.forEach(s => initStepState(s));
-    focusedStepIdx = 0;
-    playerPlaying = false;
-    clearInterval(tickInterval);
-    tickInterval = null;
-    stopBgAudio();
-    releaseWakeLock();
-    showToast('All reset');
-    updateFocusedDisplay();
-    renderPlayerSteps();
-    updateKachunkIcon();
-  }, 600);
-}
-
-export function restartUp() {
-  clearTimeout(restartTimer);
-  if (restartTriggered) return;
-
-  // Short tap: restart the focused step's timer (preserve run/pause state)
-  const step = playerFlatSteps[focusedStepIdx];
-  if (step && step._state) {
-    const st = step._state;
-    if (st.status === 'running' || st.status === 'overtime') {
-      st.secondsLeft = st.totalSeconds;
-      st.overtimeSeconds = 0;
-      st.status = 'running';
-      playUiSound('whoosh');
-      vibrateDevice([10]);
-      document.getElementById('chronoFace').className = 'chrono-face';
-      document.getElementById('kachunkBtn').classList.remove('ready-pulse');
-    } else if (st.status === 'paused') {
-      // Restart but stay paused — preserve the pause state
-      st.secondsLeft = st.totalSeconds;
-      st.overtimeSeconds = 0;
-      playUiSound('whoosh');
-      vibrateDevice([10]);
-    } else if (st.status === 'idle' || st.status === 'done') {
-      st.secondsLeft = st.totalSeconds;
-      st.overtimeSeconds = 0;
-      st.status = playerPlaying ? 'running' : 'idle';
-      playUiSound('whoosh');
-      vibrateDevice([10]);
-      if (playerPlaying) ensureTickRunning();
-    }
-    updateFocusedDisplay();
-    renderPlayerSteps();
-    updateKachunkIcon();
-  }
-}
-
-export function restartCancel() {
-  clearTimeout(restartTimer);
-  restartTriggered = false;
-}
-
-// ─── Smart Pause Button ───
-// 1st press: pause just the focused step
-// 2nd press (focused already paused): master pause all
-
-export function smartPause() {
-  const step = playerFlatSteps[focusedStepIdx];
-  const st = step?._state;
-
-  if (st && (st.status === 'overtime' || (st.status === 'paused' && st.secondsLeft <= 0))) {
-    // Timer is done (overtime or paused-at-zero) → mark as COMPLETE
-    st.status = 'done';
-    playUiSound('clickPause');
-    vibrateDevice([15, 30]);
-    document.getElementById('chronoFace').className = 'chrono-face';
-    document.getElementById('kachunkBtn').classList.remove('ready-pulse');
-
-    // If nothing left running, stop the clock
-    if (getRunningSteps().length === 0) {
-      playerPlaying = false;
-      stopBgAudio();
-      releaseWakeLock();
-      clearInterval(tickInterval);
-      tickInterval = null;
-    }
-    if (areAllDone()) showCompletion();
-  } else if (st && st.status === 'running') {
-    // Step still has time → pause just this step
-    st.status = 'paused';
-    playUiSound('clickPause');
-    vibrateDevice([10]);
-
-    if (getRunningSteps().length === 0) {
-      playerPlaying = false;
-      stopBgAudio();
-      releaseWakeLock();
-      clearInterval(tickInterval);
-      tickInterval = null;
-    }
-  } else if (playerPlaying) {
-    // Focused is paused/idle but other things running → master pause
-    pauseAll();
-  }
-  // else: everything already paused, no-op
-
-  updateFocusedDisplay();
-  renderPlayerSteps();
-  updateKachunkIcon();
-}
-
-// ─── Step Interactions ───
-
-// Tap a step: focus it. Only auto-start if global play is active and step is idle.
-export function onStepTap(idx) {
-  const step = playerFlatSteps[idx];
-  if (!step || !step._state) return;
-  const st = step._state;
-
-  focusedStepIdx = idx;
-
-  if (st.status === 'idle' && playerPlaying) {
-    // Global play is on and this step hasn't started — start it
-    st.status = 'running';
-    playUiSound('clickPlay');
-    vibrateDevice([10, 20, 40]);
-    announceStep(step.label);
-    ensureTickRunning();
-  }
-  // All other states: just focus (don't auto-start paused steps)
-
-  updateFocusedDisplay();
-  renderPlayerSteps();
-  updateKachunkIcon();
-}
-
-// Focus a step (from dot sidebar) without changing its state
-export function focusStep(idx) {
-  if (idx >= 0 && idx < playerFlatSteps.length) {
-    focusedStepIdx = idx;
-    updateFocusedDisplay();
-    renderPlayerSteps();
-  }
-}
-
-// ─── Controls ───
-
-// KaChunk button: context-dependent
-// - Focused step is paused → resume just that step
-// - Everything paused → master resume all
-// - Active → complete focused + advance
-export function kachunkAction() {
-  const step = playerFlatSteps[focusedStepIdx];
-  const st = step?._state;
-
-  if (st && st.status === 'paused') {
-    // Resume just this one step
-    st.status = st.secondsLeft > 0 ? 'running' : 'overtime';
-    playerPlaying = true;
-    playUiSound('clickPlay');
-    vibrateDevice([10, 20, 40]);
-    startBgAudio(getEffectiveBg());
-    requestWakeLock();
-    ensureTickRunning();
-    updateFocusedDisplay();
-    renderPlayerSteps();
-    updateKachunkIcon();
-  } else if (!playerPlaying) {
-    // Nothing focused is paused — master resume all paused steps
-    resumeOrStartNext();
-    updateKachunkIcon();
-  } else {
-    // Active — complete focused + advance
-    advanceFocused();
-  }
-}
-
-// Keep togglePlay for backward compat
-export function togglePlay() {
-  if (playerPlaying) masterPause();
-  else kachunkAction();
-}
+// ─── Control Button Icons ───
 
 function updatePauseIcon() {
   const btn = document.getElementById('pauseBtn');
   if (!btn) return;
-  const st = playerFlatSteps[focusedStepIdx]?._state;
-
-  // Show chrono-dot when step timer is done (can mark complete)
+  const eng = viewingEngine();
+  const st = eng?.focusedState();
   if (st && (st.status === 'overtime' || (st.status === 'paused' && st.secondsLeft <= 0))) {
     btn.innerHTML = `<svg viewBox="0 0 44 44">
       <circle fill="none" stroke="currentColor" stroke-width="2" cx="22" cy="22" r="18" opacity="0.4"/>
       <circle fill="none" stroke="var(--accent)" stroke-width="2.5" cx="22" cy="22" r="18"
-        stroke-dasharray="113.1" stroke-dashoffset="0"
-        stroke-linecap="round" transform="rotate(-90 22 22)"/>
+        stroke-dasharray="113.1" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 22 22)"/>
       <circle fill="var(--accent)" cx="22" cy="22" r="3"/>
     </svg>`;
     btn.classList.add('complete-mode');
@@ -650,288 +547,244 @@ function updatePauseIcon() {
 function updateKachunkIcon() {
   const icon = document.getElementById('kachunkIcon');
   if (!icon) return;
-  const st = playerFlatSteps[focusedStepIdx]?._state;
-
+  const eng = viewingEngine();
+  const st = eng?.focusedState();
   if (st && st.status === 'paused') {
     icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
-  } else if (!playerPlaying) {
+  } else if (!eng?.playing) {
     icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
   } else {
     icon.innerHTML = '<path d="M5 18l7-6-7-6zM11 18l7-6-7-6z"/><path d="M18 6h2v12h-2z"/>';
   }
-
-  // Always update pause icon in sync
   updatePauseIcon();
 }
 
-function resumeOrStartNext() {
-  playerPlaying = true;
-  playUiSound('clickPlay');
-  startBgAudio(getEffectiveBg());
+// ═══════════════════════════════════════════════════
+// Public API — called from app.js / home.js
+// ═══════════════════════════════════════════════════
+
+// ─── Open player screen for a chunk ───
+
+export function startPlayer(id) {
+  const eng = getOrCreateEngine(id);
+  if (!eng) return;
+  switchPlayerView(eng);
+  showScreen('playerScreen');
+}
+
+export function openPlayerView(id) { startPlayer(id); }
+
+// ─── Drawer-level controls (no screen transition) ───
+
+export function startChunkFromDrawer(id) {
+  const eng = getOrCreateEngine(id);
+  if (!eng) return;
+  if (eng.playing) return; // already running
+  eng.startFocused();
+  announceStep(eng.focusedLabel());
+  startBgAudio(getEffectiveBg(eng));
   requestWakeLock();
+  ensureGlobalTick();
+}
 
-  // Resume all paused steps first
-  const paused = getPausedSteps();
-  if (paused.length > 0) {
-    paused.forEach(s => {
-      s._state.status = s._state.secondsLeft > 0 ? 'running' : 'overtime';
-    });
+export function pauseChunkFromDrawer(id) {
+  const eng = engines.get(id);
+  if (eng && eng.playing) {
+    eng.masterPause();
+    stopGlobalTickIfIdle();
+  }
+}
+
+export function resumeChunkFromDrawer(id) {
+  const eng = engines.get(id);
+  if (eng && !eng.playing) {
+    eng.resumeOrStartNext();
+    startBgAudio(getEffectiveBg(eng));
+    requestWakeLock();
+    ensureGlobalTick();
+  }
+}
+
+export function getFocusedStepLabel(id) {
+  if (id) { const eng = engines.get(id); return eng ? eng.focusedLabel() : ''; }
+  const eng = viewingEngine();
+  return eng ? eng.focusedLabel() : '';
+}
+
+// ─── Player controls (operate on viewed engine) ───
+
+export function kachunkAction() {
+  const eng = viewingEngine();
+  if (!eng) return;
+  const st = eng.focusedState();
+
+  if (st && st.status === 'paused') {
+    st.status = st.secondsLeft > 0 ? 'running' : 'overtime';
+    eng.playing = true;
+    playUiSound('clickPlay'); vibrateDevice([10, 20, 40]);
+    startBgAudio(getEffectiveBg(eng)); requestWakeLock();
+    ensureGlobalTick();
+  } else if (!eng.playing) {
+    eng.resumeOrStartNext();
+    playUiSound('clickPlay');
+    startBgAudio(getEffectiveBg(eng)); requestWakeLock();
+    ensureGlobalTick();
   } else {
-    // Nothing paused — start the focused step if idle, otherwise first idle
-    const focusedSt = playerFlatSteps[focusedStepIdx]?._state;
-    if (focusedSt && focusedSt.status === 'idle') {
-      focusedSt.status = 'running';
-      announceStep(playerFlatSteps[focusedStepIdx].label);
-    } else {
-      const nextIdle = playerFlatSteps.find(s => s._state?.status === 'idle');
-      if (nextIdle) {
-        nextIdle._state.status = 'running';
-        focusedStepIdx = playerFlatSteps.indexOf(nextIdle);
-        announceStep(nextIdle.label);
-      }
-    }
+    // Active → advance
+    const kb = document.getElementById('kachunkBtn');
+    playUiSound('kachunk'); vibrateDevice([15, 30, 80]);
+    kb.classList.remove('ready-pulse', 'snapping');
+    void kb.offsetWidth;
+    kb.classList.add('snapping');
+    setTimeout(() => kb.classList.remove('snapping'), 400);
+    eng.advanceFocused();
+    if (eng.allDone()) { eng.playing = false; showCompletion(eng); }
+    ensureGlobalTick();
   }
-
-  ensureTickRunning();
-  updateFocusedDisplay();
-  renderPlayerSteps();
+  updateFocusedDisplay(); renderPlayerSteps(); updateKachunkIcon();
 }
 
-function pauseAll() {
-  // Pause all running/overtime steps — preserve their progress
-  playerFlatSteps.forEach(s => {
-    if (s._state && (s._state.status === 'running' || s._state.status === 'overtime')) {
-      s._state.status = 'paused';
-    }
-  });
-  playerPlaying = false;
-  playUiSound('clickPause');
-  stopBgAudio();
-  releaseWakeLock();
-  clearInterval(tickInterval);
-  tickInterval = null;
-  renderPlayerSteps();
-}
+export function smartPause() {
+  const eng = viewingEngine();
+  if (!eng) return;
+  const st = eng.focusedState();
 
-// ─── Global Tick (1Hz) ───
-
-function ensureTickRunning() {
-  if (tickInterval) return;
-  tickInterval = setInterval(globalTick, 1000);
-}
-
-function globalTick() {
-  if (!playerPlaying) return;
-
-  let anyRunning = false;
-  let newOvertimes = [];
-
-  playerFlatSteps.forEach((step, i) => {
-    const st = step._state;
-    if (!st) return;
-
-    if (st.status === 'running') {
-      anyRunning = true;
-      st.secondsLeft--;
-      if (st.secondsLeft <= 0) {
-        // Step timer expired — enter overtime
-        st.status = 'overtime';
-        st.secondsLeft = 0;
-        st.overtimeSeconds = 0;
-        newOvertimes.push(i);
-      }
-    } else if (st.status === 'overtime') {
-      anyRunning = true;
-      st.overtimeSeconds++;
-    }
-  });
-
-  // Handle new overtimes — alarm for ALL steps, not just focused
-  if (newOvertimes.length > 0) {
-    playAlarmSound(getEffectiveAlarm());
-    vibrateDevice();
-    // If the focused step just went overtime, pulse the kachunk button
-    if (newOvertimes.includes(focusedStepIdx)) {
-      document.getElementById('kachunkBtn').classList.add('ready-pulse');
-    }
-    // Auto-focus the first new overtime step if current focus is idle/done
-    const focusedSt = playerFlatSteps[focusedStepIdx]?._state?.status;
-    if (focusedSt === 'idle' || focusedSt === 'done') {
-      focusedStepIdx = newOvertimes[0];
-      updateKachunkIcon();
-    }
+  if (st && (st.status === 'overtime' || (st.status === 'paused' && st.secondsLeft <= 0))) {
+    eng.pauseFocused();
+    playUiSound('clickPause'); vibrateDevice([15, 30]);
+    document.getElementById('chronoFace').className = 'chrono-face';
+    document.getElementById('kachunkBtn').classList.remove('ready-pulse');
+    if (eng.allDone()) showCompletion(eng);
+  } else if (st && st.status === 'running') {
+    eng.pauseFocused();
+    playUiSound('clickPause'); vibrateDevice([10]);
+  } else if (eng.playing) {
+    eng.masterPause();
+    playUiSound('clickPause');
   }
-
-  updateFocusedDisplay();
-  renderPlayerSteps();
-
-  // If nothing is running or overtime, stop ticking
-  if (!anyRunning) {
-    clearInterval(tickInterval);
-    tickInterval = null;
-    if (areAllDone()) {
-      showCompletion();
-    }
-  }
+  stopGlobalTickIfIdle();
+  updateFocusedDisplay(); renderPlayerSteps(); updateKachunkIcon();
 }
 
-// ─── KaChunk! (Advance focused step) ───
-
-function advanceFocused() {
-  const step = playerFlatSteps[focusedStepIdx];
-  if (!step || !step._state) return;
-  const st = step._state;
-
-  // KaChunk interaction — sound + haptic + animation
-  const kb = document.getElementById('kachunkBtn');
-  playUiSound('kachunk');
-  vibrateDevice([15, 30, 80]);
-  kb.classList.remove('ready-pulse', 'snapping');
-  void kb.offsetWidth;
-  kb.classList.add('snapping');
-  setTimeout(() => kb.classList.remove('snapping'), 400);
-
-  // Mark current focused step as done
-  st.status = 'done';
-
-  // Find next sibling in the same lineage
-  const nextIdx = findNextSibling(focusedStepIdx);
-
-  if (nextIdx !== -1) {
-    const nextStep = playerFlatSteps[nextIdx];
-    const nextSt = nextStep._state;
-    focusedStepIdx = nextIdx;
-
-    // Auto-start the next sibling if it's idle and global play is on
-    if (playerPlaying && nextSt.status === 'idle') {
-      nextSt.status = 'running';
-      announceStep(nextStep.label);
-      ensureTickRunning();
-    }
-  }
-  // else: no next sibling — stay on current (last in its group)
-
-  if (areAllDone()) {
-    playerPlaying = false;
-    releaseWakeLock();
-    showCompletion();
-  }
-
-  updateFocusedDisplay();
-  renderPlayerSteps();
-  updateKachunkIcon();
+export function togglePlay() {
+  const eng = viewingEngine();
+  if (!eng) return;
+  if (eng.playing) smartPause(); else kachunkAction();
 }
 
-// ─── Sibling Navigation ───
-// Find the next step that shares the same parent context as the given index.
-// - Top-level steps (depth 0, sourceChunkId null) → next top-level step
-// - Nested steps (same sourceChunkId, same depth) → next step in that nested chunk
-// Returns flat index or -1 if no next sibling
+let restartTimer = null, restartTriggered = false;
 
-function findNextSibling(fromIdx) {
-  const current = playerFlatSteps[fromIdx];
-  if (!current) return -1;
+export function restartDown() {
+  restartTriggered = false;
+  restartTimer = setTimeout(() => {
+    restartTriggered = true;
+    const eng = viewingEngine();
+    if (!eng) return;
+    vibrateDevice([50, 30, 50]);
+    eng.masterReset();
+    stopGlobalTickIfIdle();
+    showToast('All reset');
+    updateFocusedDisplay(); renderPlayerSteps(); updateKachunkIcon();
+  }, 600);
+}
 
-  const mySource = current.sourceChunkId;
-  const myDepth = current.depth;
+export function restartUp() {
+  clearTimeout(restartTimer);
+  if (restartTriggered) return;
+  const eng = viewingEngine();
+  if (!eng) return;
+  eng.restartFocused();
+  playUiSound('whoosh'); vibrateDevice([10]);
+  if (eng.playing) ensureGlobalTick();
+  document.getElementById('chronoFace').className = 'chrono-face';
+  document.getElementById('kachunkBtn').classList.remove('ready-pulse');
+  updateFocusedDisplay(); renderPlayerSteps(); updateKachunkIcon();
+}
 
-  for (let i = fromIdx + 1; i < playerFlatSteps.length; i++) {
-    const candidate = playerFlatSteps[i];
+export function restartCancel() { clearTimeout(restartTimer); restartTriggered = false; }
 
-    if (mySource === null && myDepth === 0) {
-      // Top-level: next step that is also top-level (depth 0)
-      if (candidate.depth === 0) return i;
-    } else {
-      // Nested: next step with same sourceChunkId AND same depth
-      if (candidate.sourceChunkId === mySource && candidate.depth === myDepth) return i;
-      // If we hit a step at a shallower depth, we've left this nested chunk — stop
-      if (candidate.depth < myDepth) return -1;
-    }
+export function onStepTap(idx) {
+  const eng = viewingEngine();
+  if (!eng) return;
+  const st = eng.flatSteps[idx]?._state;
+  if (!st) return;
+  eng.focusedIdx = idx;
+  if (st.status === 'idle' && eng.playing) {
+    st.status = 'running';
+    playUiSound('clickPlay'); vibrateDevice([10, 20, 40]);
+    announceStep(eng.flatSteps[idx].label);
+    ensureGlobalTick();
   }
-  return -1;
+  updateFocusedDisplay(); renderPlayerSteps(); updateKachunkIcon();
 }
 
-export function playerNext() {
-  kachunkAction();
+export function focusStep(idx) {
+  const eng = viewingEngine();
+  if (!eng || idx < 0 || idx >= eng.flatSteps.length) return;
+  eng.focusedIdx = idx;
+  updateFocusedDisplay(); renderPlayerSteps();
 }
 
+export function playerNext() { kachunkAction(); }
 export function playerPrev() {
-  // In parallel model, prev focuses the previous step
-  if (focusedStepIdx > 0) {
-    focusedStepIdx--;
-    playUiSound('whoosh');
-    updateFocusedDisplay();
-    renderPlayerSteps();
-  }
+  const eng = viewingEngine();
+  if (!eng || eng.focusedIdx <= 0) return;
+  eng.focusedIdx--;
+  playUiSound('whoosh');
+  updateFocusedDisplay(); renderPlayerSteps();
 }
-
-// Jump to step (legacy compat)
-export function jumpToStep(idx) {
-  onStepTap(idx);
-}
+export function jumpToStep(idx) { onStepTap(idx); }
 
 // ─── Navigate ───
 
-export function goBackToDrawer() {
-  goHome();
-  renderHome();
-}
+export function goBackToDrawer() { goHome(); renderHome(); }
 
 export function stopAndGoHome() {
-  clearInterval(tickInterval);
-  tickInterval = null;
-  stopBgAudio();
-  releaseWakeLock();
-  playerPlaying = false;
-  playerChunk = null;
-  playerFlatSteps = [];
-  focusedStepIdx = 0;
-  goHome();
-  renderHome();
+  const eng = viewingEngine();
+  if (eng) {
+    eng.masterReset();
+    engines.delete(eng.id);
+  }
+  viewingId = null;
+  stopGlobalTickIfIdle();
+  goHome(); renderHome();
 }
 
 // ─── Completion ───
 
-function showCompletion() {
+function showCompletion(eng) {
   stopBgAudio();
-  const totalMin = playerFlatSteps.reduce((s, st) => s + (parseFloat(st.minutes) || 0), 0);
+  const totalMin = eng.flatSteps.reduce((s, st) => s + (parseFloat(st.minutes) || 0), 0);
   document.getElementById('completionSub').textContent =
-    `${playerChunk.name} — ${formatDuration(totalMin)} completed`;
+    `${eng.chunk.name} — ${formatDuration(totalMin)} completed`;
   document.getElementById('completionOverlay').classList.add('show');
-  playCompletionFanfare();
-  announceCompletion(playerChunk.name);
-  spawnParticles();
-  vibrateDevice([100, 50, 100, 50, 200]);
+  playCompletionFanfare(); announceCompletion(eng.chunk.name);
+  spawnParticles(); vibrateDevice([100, 50, 100, 50, 200]);
 }
 
 export function closeCompletion() {
   document.getElementById('completionOverlay').classList.remove('show');
-  stopAndGoHome();
+  const eng = viewingEngine();
+  if (eng) { engines.delete(eng.id); }
+  viewingId = null;
+  goHome(); renderHome();
 }
 
-// ─── Voice Toggle ───
+// ─── Voice / BG Audio ───
 
 export function toggleVoiceInPlayer() {
   const s = loadAudioSettings();
-  s.voice = !s.voice;
-  saveAudioSettings(s);
+  s.voice = !s.voice; saveAudioSettings(s);
   const btn = document.getElementById('voiceToggleBtn');
   btn.style.opacity = s.voice ? '1' : '0.4';
   showToast(s.voice ? 'Voice on' : 'Voice off');
 }
 
-// ─── BG Audio Picker ───
-
 export function toggleBgAudioPicker() {
   const panel = document.getElementById('playerBgPicker');
   const overlay = document.getElementById('bgPickerOverlay');
-  if (panel.classList.contains('show')) {
-    closeBgAudioPicker();
-  } else {
-    overlay.classList.add('show');
-    panel.classList.add('show');
-    renderPlayerBgPicker();
-  }
+  if (panel.classList.contains('show')) { closeBgAudioPicker(); }
+  else { overlay.classList.add('show'); panel.classList.add('show'); renderPlayerBgPicker(); }
 }
 
 export function closeBgAudioPicker() {
@@ -940,7 +793,8 @@ export function closeBgAudioPicker() {
 }
 
 function renderPlayerBgPicker() {
-  const currentBg = getEffectiveBg();
+  const eng = viewingEngine();
+  const currentBg = getEffectiveBg(eng);
   document.getElementById('playerBgPickerPills').innerHTML =
     Object.entries(BG_SOUNDS).map(([key, snd]) =>
       `<button class="sound-pill ${currentBg === key ? 'selected' : ''}" onclick="window._kachunk.selectPlayerBg('${key}')">${snd.icon} ${snd.label}</button>`
@@ -948,76 +802,19 @@ function renderPlayerBgPicker() {
 }
 
 export function selectPlayerBg(key) {
-  const s = loadAudioSettings();
-  s.bg = key;
-  saveAudioSettings(s);
+  const s = loadAudioSettings(); s.bg = key; saveAudioSettings(s);
   closeBgAudioPicker();
-  if (playerPlaying) {
-    stopBgAudio();
-    if (key !== 'none') startBgAudio(key);
-  }
+  const eng = viewingEngine();
+  if (eng?.playing) { stopBgAudio(); if (key !== 'none') startBgAudio(key); }
 }
 
-// ─── Start chunk from drawer (no screen transition) ───
+// ─── Drawer query API ───
 
-export function startChunkFromDrawer(id) {
-  const chunks = loadChunks();
-  const chunk = chunks.find(c => c.id === id);
-  if (!chunk) return;
-
-  const flat = flattenChunk(chunk, chunks);
-  if (flat.length === 0) return;
-
-  // If already loaded, just resume
-  if (playerChunk && playerChunk.id === id) {
-    if (!playerPlaying) {
-      resumeOrStartNext();
-    }
-    return;
-  }
-
-  // Initialize fresh
-  playerChunk = chunk;
-  playerFlatSteps = flat;
-  playerFlatSteps.forEach(s => initStepState(s));
-  // focusedStepIdx stays at 0 for fresh start (no prior focus)
-
-  // Auto-start the focused step (not necessarily first)
-  playerPlaying = true;
-  playerFlatSteps[focusedStepIdx]._state.status = 'running';
-  ensureTickRunning();
+export function getPlayerChunkId() { return viewingId; }
+export function isPlayerRunning() { return viewingEngine()?.playing || false; }
+export function getPlayerProgress(id) {
+  const eng = id ? engines.get(id) : viewingEngine();
+  return eng ? eng.progress() : 0;
 }
-
-export function pauseChunkFromDrawer(id) {
-  if (playerChunk && playerChunk.id === id && playerPlaying) {
-    pauseAll();
-  }
-}
-
-export function resumeChunkFromDrawer(id) {
-  if (playerChunk && playerChunk.id === id && !playerPlaying) {
-    resumeOrStartNext();
-  }
-}
-
-export function getFocusedStepLabel() {
-  const step = playerFlatSteps[focusedStepIdx];
-  return step ? (step.label || 'Step ' + (focusedStepIdx + 1)) : '';
-}
-
-// ─── Exports for drawer to query state ───
-
-export function getPlayerChunkId() {
-  return playerChunk ? playerChunk.id : null;
-}
-
-export function isPlayerRunning() {
-  return playerPlaying;
-}
-
-export function getPlayerProgress() {
-  if (!playerChunk || playerFlatSteps.length === 0) return 0;
-  const total = getTotalDurationSecs();
-  const elapsed = getTotalElapsed();
-  return total > 0 ? elapsed / total : 0;
-}
+export function isEngineActive(id) { return engines.has(id); }
+export function isEnginePlaying(id) { return engines.get(id)?.playing || false; }
