@@ -152,7 +152,7 @@ export function startPlayer(id) {
 
   document.getElementById('playerTitle').textContent = playerChunk.name;
   document.getElementById('breadcrumbBar').classList.remove('expanded');
-  updatePlayPauseIcon(false);
+  updateKachunkIcon();
 
   const s = loadAudioSettings();
   const voiceBtn = document.getElementById('voiceToggleBtn');
@@ -512,13 +512,15 @@ export function smartPause() {
   const step = playerFlatSteps[focusedStepIdx];
   const st = step?._state;
 
-  if (st && st.status === 'running') {
-    // Focused step is running → pause just this step (preserve progress)
-    st.status = 'paused';
+  if (st && (st.status === 'overtime' || (st.status === 'paused' && st.secondsLeft <= 0))) {
+    // Timer is done (overtime or paused-at-zero) → mark as COMPLETE
+    st.status = 'done';
     playUiSound('clickPause');
-    vibrateDevice([10]);
+    vibrateDevice([15, 30]);
+    document.getElementById('chronoFace').className = 'chrono-face';
+    document.getElementById('kachunkBtn').classList.remove('ready-pulse');
 
-    // If no more steps are running, auto master-pause
+    // If nothing left running, stop the clock
     if (getRunningSteps().length === 0) {
       playerPlaying = false;
       stopBgAudio();
@@ -526,8 +528,9 @@ export function smartPause() {
       clearInterval(tickInterval);
       tickInterval = null;
     }
-  } else if (st && st.status === 'overtime') {
-    // Overtime step — pause it (preserve overtime count)
+    if (areAllDone()) showCompletion();
+  } else if (st && st.status === 'running') {
+    // Step still has time → pause just this step
     st.status = 'paused';
     playUiSound('clickPause');
     vibrateDevice([10]);
@@ -540,7 +543,7 @@ export function smartPause() {
       tickInterval = null;
     }
   } else if (playerPlaying) {
-    // Focused is not running but other things are → master pause all
+    // Focused is paused/idle but other things running → master pause
     pauseAll();
   }
   // else: everything already paused, no-op
@@ -744,7 +747,7 @@ function advanceFocused() {
   if (!step || !step._state) return;
   const st = step._state;
 
-  // KaChunk interaction
+  // KaChunk interaction — sound + haptic + animation
   const kb = document.getElementById('kachunkBtn');
   playUiSound('kachunk');
   vibrateDevice([15, 30, 80]);
@@ -756,24 +759,61 @@ function advanceFocused() {
   // Mark current focused step as done
   st.status = 'done';
 
-  // Auto-start the next idle step if global play is on
-  if (playerPlaying) {
-    const nextIdle = playerFlatSteps.find(s => s._state?.status === 'idle');
-    if (nextIdle) {
-      nextIdle._state.status = 'running';
-      focusedStepIdx = playerFlatSteps.indexOf(nextIdle);
-      announceStep(nextIdle.label);
+  // Find next sibling in the same lineage
+  const nextIdx = findNextSibling(focusedStepIdx);
+
+  if (nextIdx !== -1) {
+    const nextStep = playerFlatSteps[nextIdx];
+    const nextSt = nextStep._state;
+    focusedStepIdx = nextIdx;
+
+    // Auto-start the next sibling if it's idle and global play is on
+    if (playerPlaying && nextSt.status === 'idle') {
+      nextSt.status = 'running';
+      announceStep(nextStep.label);
       ensureTickRunning();
-    } else if (areAllDone()) {
-      playerPlaying = false;
-      updatePlayPauseIcon(false);
-      releaseWakeLock();
-      showCompletion();
     }
+  }
+  // else: no next sibling — stay on current (last in its group)
+
+  if (areAllDone()) {
+    playerPlaying = false;
+    releaseWakeLock();
+    showCompletion();
   }
 
   updateFocusedDisplay();
   renderPlayerSteps();
+  updateKachunkIcon();
+}
+
+// ─── Sibling Navigation ───
+// Find the next step that shares the same parent context as the given index.
+// - Top-level steps (depth 0, sourceChunkId null) → next top-level step
+// - Nested steps (same sourceChunkId, same depth) → next step in that nested chunk
+// Returns flat index or -1 if no next sibling
+
+function findNextSibling(fromIdx) {
+  const current = playerFlatSteps[fromIdx];
+  if (!current) return -1;
+
+  const mySource = current.sourceChunkId;
+  const myDepth = current.depth;
+
+  for (let i = fromIdx + 1; i < playerFlatSteps.length; i++) {
+    const candidate = playerFlatSteps[i];
+
+    if (mySource === null && myDepth === 0) {
+      // Top-level: next step that is also top-level (depth 0)
+      if (candidate.depth === 0) return i;
+    } else {
+      // Nested: next step with same sourceChunkId AND same depth
+      if (candidate.sourceChunkId === mySource && candidate.depth === myDepth) return i;
+      // If we hit a step at a shallower depth, we've left this nested chunk — stop
+      if (candidate.depth < myDepth) return -1;
+    }
+  }
+  return -1;
 }
 
 export function playerNext() {
