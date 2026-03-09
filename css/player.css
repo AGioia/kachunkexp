@@ -668,6 +668,28 @@
   color: var(--overtime);
 }
 
+.player-step-item .psi-timer.paused {
+  opacity: 0.6;
+}
+
+.player-step-item.paused {
+  opacity: 0.7;
+}
+
+.player-step-item.paused .psi-num {
+  color: var(--accent);
+  opacity: 0.5;
+}
+
+.chrono-face.paused {
+  opacity: 0.85;
+}
+
+.dot-step.paused .dot-timer-fill {
+  stroke: var(--accent);
+  opacity: 0.5;
+}
+
 .player-step-item.focused {
   border-left: 2px solid var(--accent);
   padding-left: 10px;

@@ -33,7 +33,8 @@ const OVERTIME_CIRC = 2 * Math.PI * OVERTIME_RADIUS;
 
 // ─── Step State ───
 // Each step in playerFlatSteps gets a _state object:
-// { status: 'idle'|'running'|'overtime'|'done', secondsLeft, totalSeconds, overtimeSeconds }
+// { status: 'idle'|'paused'|'running'|'overtime'|'done', secondsLeft, totalSeconds, overtimeSeconds }
+// 'paused' preserves secondsLeft — step has been started but is not ticking
 
 function initStepState(step) {
   const total = Math.round((parseFloat(step.minutes) || 1) * 60);
@@ -49,6 +50,10 @@ function getRunningSteps() {
   return playerFlatSteps.filter(s => s._state && (s._state.status === 'running' || s._state.status === 'overtime'));
 }
 
+function getPausedSteps() {
+  return playerFlatSteps.filter(s => s._state && s._state.status === 'paused');
+}
+
 function getOvertimeSteps() {
   return playerFlatSteps.filter(s => s._state && s._state.status === 'overtime');
 }
@@ -57,12 +62,19 @@ function areAllDone() {
   return playerFlatSteps.every(s => s._state && s._state.status === 'done');
 }
 
+function isEverythingPaused() {
+  // True if at least one step has been started (paused/running/overtime/done) but nothing is running
+  const started = playerFlatSteps.some(s => s._state && s._state.status !== 'idle');
+  const running = getRunningSteps().length;
+  return started && running === 0 && !areAllDone();
+}
+
 function getTotalElapsed() {
   let elapsed = 0;
   playerFlatSteps.forEach(s => {
     if (!s._state) return;
     const st = s._state;
-    if (st.status === 'done' || st.status === 'running' || st.status === 'overtime') {
+    if (st.status === 'done' || st.status === 'running' || st.status === 'overtime' || st.status === 'paused') {
       elapsed += (st.totalSeconds - st.secondsLeft) + st.overtimeSeconds;
     }
   });
@@ -183,12 +195,16 @@ function updateFocusedDisplay() {
 
   document.getElementById('playerStepLabel').textContent = step.label || 'Step ' + (focusedStepIdx + 1);
 
-  // Count running/total
+  // Count running/paused/total
   const running = getRunningSteps().length;
+  const paused = getPausedSteps().length;
   const overtime = getOvertimeSteps().length;
   const done = playerFlatSteps.filter(s => s._state?.status === 'done').length;
-  document.getElementById('playerStepCount').textContent =
-    `${done}/${playerFlatSteps.length} done` + (running > 0 ? ` · ${running} active` : '') + (overtime > 0 ? ` · ${overtime} overtime` : '');
+  let countText = `${done}/${playerFlatSteps.length} done`;
+  if (running > 0) countText += ` · ${running} active`;
+  if (paused > 0) countText += ` · ${paused} paused`;
+  if (overtime > 0) countText += ` · ${overtime} overtime`;
+  document.getElementById('playerStepCount').textContent = countText;
 
   updateChronoRings();
   updateBreadcrumb();
@@ -219,6 +235,20 @@ function updateChronoRings() {
     overtimeRing.style.strokeDashoffset = OVERTIME_CIRC;
     resetOvertimeTicks();
     face.className = 'chrono-face';
+  } else if (st.status === 'paused') {
+    // Show frozen progress
+    const pct = st.totalSeconds > 0 ? (st.totalSeconds - st.secondsLeft) / st.totalSeconds : 0;
+    stepRing.style.strokeDashoffset = STEP_CIRC * (1 - pct);
+    if (st.secondsLeft <= 0 && st.overtimeSeconds > 0) {
+      overtimeRing.classList.add('active');
+      const otPct = Math.min(st.overtimeSeconds / 300, 1);
+      overtimeRing.style.strokeDashoffset = OVERTIME_CIRC * (1 - otPct);
+    } else {
+      overtimeRing.classList.remove('active');
+      overtimeRing.style.strokeDashoffset = OVERTIME_CIRC;
+    }
+    resetOvertimeTicks();
+    face.className = 'chrono-face paused';
   } else {
     const pct = st.totalSeconds > 0 ? (st.totalSeconds - st.secondsLeft) / st.totalSeconds : 0;
     stepRing.style.strokeDashoffset = STEP_CIRC * (1 - pct);
@@ -280,13 +310,14 @@ function renderPlayerSteps() {
     if (st.status === 'done') cls = 'completed';
     else if (st.status === 'running') cls = 'current';
     else if (st.status === 'overtime') cls = 'current overtime';
+    else if (st.status === 'paused') cls = 'paused';
     if (i === focusedStepIdx) cls += ' focused';
 
     const sourceHtml = s.sourceChunk
       ? `<div class="psi-source"><span class="link-icon">&#x27C1;</span> ${esc(s.sourceChunk)}</div>`
       : '';
 
-    // Show timer for running/overtime steps
+    // Show timer for running/overtime/paused steps
     let timerHtml = '';
     if (st.status === 'running') {
       const m = Math.floor(st.secondsLeft / 60);
@@ -296,10 +327,21 @@ function renderPlayerSteps() {
       const m = Math.floor(st.overtimeSeconds / 60);
       const sec = st.overtimeSeconds % 60;
       timerHtml = `<span class="psi-timer overtime">+${m}:${sec.toString().padStart(2, '0')}</span>`;
+    } else if (st.status === 'paused') {
+      if (st.secondsLeft > 0) {
+        const m = Math.floor(st.secondsLeft / 60);
+        const sec = st.secondsLeft % 60;
+        timerHtml = `<span class="psi-timer paused">${m}:${sec.toString().padStart(2, '0')}</span>`;
+      } else {
+        const m = Math.floor(st.overtimeSeconds / 60);
+        const sec = st.overtimeSeconds % 60;
+        timerHtml = `<span class="psi-timer paused overtime">+${m}:${sec.toString().padStart(2, '0')}</span>`;
+      }
     }
 
     const statusIcon = st.status === 'done' ? '&#x2713;'
       : (st.status === 'running' || st.status === 'overtime') ? '&#x25CF;'
+      : st.status === 'paused' ? '&#x25CB;'  // hollow circle for paused
       : (i + 1);
 
     return `
@@ -334,7 +376,7 @@ function updateDotSidebar() {
   dots.forEach((dot, i) => {
     const st = playerFlatSteps[i]?._state;
     if (!st) return;
-    dot.classList.remove('completed', 'current', 'overtime');
+    dot.classList.remove('completed', 'current', 'overtime', 'paused');
     const timerFill = dot.querySelector('.dot-timer-fill');
     const circ = 2 * Math.PI * 3;
 
@@ -348,6 +390,10 @@ function updateDotSidebar() {
     } else if (st.status === 'overtime') {
       dot.classList.add('current', 'overtime');
       if (timerFill) timerFill.style.strokeDashoffset = '0';
+    } else if (st.status === 'paused') {
+      dot.classList.add('paused');
+      const pct = st.totalSeconds > 0 ? (st.totalSeconds - st.secondsLeft) / st.totalSeconds : 0;
+      if (timerFill) timerFill.style.strokeDashoffset = circ * (1 - pct);
     } else {
       if (timerFill) timerFill.style.strokeDashoffset = `${circ}`;
     }
@@ -421,7 +467,7 @@ export function restartUp() {
   clearTimeout(restartTimer);
   if (restartTriggered) return;
 
-  // Short tap: restart the focused step's timer
+  // Short tap: restart the focused step's timer (preserve run/pause state)
   const step = playerFlatSteps[focusedStepIdx];
   if (step && step._state) {
     const st = step._state;
@@ -433,8 +479,13 @@ export function restartUp() {
       vibrateDevice([10]);
       document.getElementById('chronoFace').className = 'chrono-face';
       document.getElementById('kachunkBtn').classList.remove('ready-pulse');
+    } else if (st.status === 'paused') {
+      // Restart but stay paused — preserve the pause state
+      st.secondsLeft = st.totalSeconds;
+      st.overtimeSeconds = 0;
+      playUiSound('whoosh');
+      vibrateDevice([10]);
     } else if (st.status === 'idle' || st.status === 'done') {
-      // Restart a completed or idle step
       st.secondsLeft = st.totalSeconds;
       st.overtimeSeconds = 0;
       st.status = playerPlaying ? 'running' : 'idle';
@@ -444,6 +495,7 @@ export function restartUp() {
     }
     updateFocusedDisplay();
     renderPlayerSteps();
+    updateKachunkIcon();
   }
 }
 
@@ -461,14 +513,13 @@ export function smartPause() {
   const st = step?._state;
 
   if (st && st.status === 'running') {
-    // Focused step is running → pause just this step
-    st.status = 'idle'; // back to idle (paused individual)
+    // Focused step is running → pause just this step (preserve progress)
+    st.status = 'paused';
     playUiSound('clickPause');
     vibrateDevice([10]);
 
     // If no more steps are running, auto master-pause
-    const stillRunning = getRunningSteps();
-    if (stillRunning.length === 0) {
+    if (getRunningSteps().length === 0) {
       playerPlaying = false;
       stopBgAudio();
       releaseWakeLock();
@@ -476,14 +527,12 @@ export function smartPause() {
       tickInterval = null;
     }
   } else if (st && st.status === 'overtime') {
-    // Overtime step — pause it
-    st.status = 'idle';
-    st.secondsLeft = 0; // keep it at zero
+    // Overtime step — pause it (preserve overtime count)
+    st.status = 'paused';
     playUiSound('clickPause');
     vibrateDevice([10]);
 
-    const stillRunning = getRunningSteps();
-    if (stillRunning.length === 0) {
+    if (getRunningSteps().length === 0) {
       playerPlaying = false;
       stopBgAudio();
       releaseWakeLock();
@@ -491,7 +540,7 @@ export function smartPause() {
       tickInterval = null;
     }
   } else if (playerPlaying) {
-    // Focused is not running but other things are → master pause
+    // Focused is not running but other things are → master pause all
     pauseAll();
   }
   // else: everything already paused, no-op
@@ -503,30 +552,27 @@ export function smartPause() {
 
 // ─── Step Interactions ───
 
-// Tap a step: if idle, start it. If running, focus it. If overtime, mark done.
+// Tap a step: focus it. Only auto-start if global play is active and step is idle.
 export function onStepTap(idx) {
   const step = playerFlatSteps[idx];
   if (!step || !step._state) return;
   const st = step._state;
 
-  if (st.status === 'idle') {
-    // Start this step
+  focusedStepIdx = idx;
+
+  if (st.status === 'idle' && playerPlaying) {
+    // Global play is on and this step hasn't started — start it
     st.status = 'running';
     playUiSound('clickPlay');
     vibrateDevice([10, 20, 40]);
     announceStep(step.label);
-    focusedStepIdx = idx;
     ensureTickRunning();
-  } else if (st.status === 'running' || st.status === 'overtime') {
-    // Focus on this step (show its timer on the chrono)
-    focusedStepIdx = idx;
-  } else if (st.status === 'done') {
-    // Already done — just focus
-    focusedStepIdx = idx;
   }
+  // All other states: just focus (don't auto-start paused steps)
 
   updateFocusedDisplay();
   renderPlayerSteps();
+  updateKachunkIcon();
 }
 
 // Focus a step (from dot sidebar) without changing its state
@@ -540,14 +586,32 @@ export function focusStep(idx) {
 
 // ─── Controls ───
 
-// KaChunk button: play when paused, complete+next when active
+// KaChunk button: context-dependent
+// - Focused step is paused → resume just that step
+// - Everything paused → master resume all
+// - Active → complete focused + advance
 export function kachunkAction() {
-  if (!playerPlaying) {
-    // PLAY
+  const step = playerFlatSteps[focusedStepIdx];
+  const st = step?._state;
+
+  if (st && st.status === 'paused') {
+    // Resume just this one step
+    st.status = st.secondsLeft > 0 ? 'running' : 'overtime';
+    playerPlaying = true;
+    playUiSound('clickPlay');
+    vibrateDevice([10, 20, 40]);
+    startBgAudio(getEffectiveBg());
+    requestWakeLock();
+    ensureTickRunning();
+    updateFocusedDisplay();
+    renderPlayerSteps();
+    updateKachunkIcon();
+  } else if (!playerPlaying) {
+    // Nothing focused is paused — master resume all paused steps
     resumeOrStartNext();
     updateKachunkIcon();
   } else {
-    // COMPLETE + NEXT (same as old playerNext)
+    // Active — complete focused + advance
     advanceFocused();
   }
 }
@@ -561,12 +625,17 @@ export function togglePlay() {
 function updateKachunkIcon() {
   const icon = document.getElementById('kachunkIcon');
   if (!icon) return;
-  if (playerPlaying) {
-    // Next/complete icon (double triangle + bar)
-    icon.innerHTML = '<path d="M5 18l7-6-7-6zM11 18l7-6-7-6z"/><path d="M18 6h2v12h-2z"/>';
-  } else {
-    // Play triangle
+  const st = playerFlatSteps[focusedStepIdx]?._state;
+
+  if (st && st.status === 'paused') {
+    // Focused step is paused → play triangle (resume this step)
     icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+  } else if (!playerPlaying) {
+    // Everything stopped → play triangle (master resume)
+    icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+  } else {
+    // Active → next/complete icon
+    icon.innerHTML = '<path d="M5 18l7-6-7-6zM11 18l7-6-7-6z"/><path d="M18 6h2v12h-2z"/>';
   }
 }
 
@@ -576,9 +645,14 @@ function resumeOrStartNext() {
   startBgAudio(getEffectiveBg());
   requestWakeLock();
 
-  // If nothing is running, start the first idle step
-  const running = getRunningSteps();
-  if (running.length === 0) {
+  // Resume all paused steps first
+  const paused = getPausedSteps();
+  if (paused.length > 0) {
+    paused.forEach(s => {
+      s._state.status = s._state.secondsLeft > 0 ? 'running' : 'overtime';
+    });
+  } else {
+    // Nothing paused — start the first idle step
     const nextIdle = playerFlatSteps.find(s => s._state?.status === 'idle');
     if (nextIdle) {
       nextIdle._state.status = 'running';
@@ -593,6 +667,12 @@ function resumeOrStartNext() {
 }
 
 function pauseAll() {
+  // Pause all running/overtime steps — preserve their progress
+  playerFlatSteps.forEach(s => {
+    if (s._state && (s._state.status === 'running' || s._state.status === 'overtime')) {
+      s._state.status = 'paused';
+    }
+  });
   playerPlaying = false;
   playUiSound('clickPause');
   stopBgAudio();
