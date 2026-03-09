@@ -209,11 +209,7 @@ export function chronoCancel() {
 // ─── Card body: open player ───
 
 export function openPlayer(chunkId) {
-  // Ensure engine exists (creates if needed, starts if not started)
-  if (!isEngineActive(chunkId)) {
-    startChunkFromDrawer(chunkId);
-    startDrawerTick();
-  }
+  // Just open the player view — don't auto-start the chunk
   const fn = window._kachunk._startPlayer;
   if (fn) fn(chunkId);
 }
