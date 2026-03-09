@@ -194,6 +194,7 @@ function updateFocusedDisplay() {
   }
 
   document.getElementById('playerStepLabel').textContent = step.label || 'Step ' + (focusedStepIdx + 1);
+  updatePauseIcon();
 
   // Count running/paused/total
   const running = getRunningSteps().length;
@@ -625,21 +626,42 @@ export function togglePlay() {
   else kachunkAction();
 }
 
+function updatePauseIcon() {
+  const btn = document.getElementById('pauseBtn');
+  if (!btn) return;
+  const st = playerFlatSteps[focusedStepIdx]?._state;
+
+  // Show chrono-dot when step timer is done (can mark complete)
+  if (st && (st.status === 'overtime' || (st.status === 'paused' && st.secondsLeft <= 0))) {
+    btn.innerHTML = `<svg viewBox="0 0 44 44">
+      <circle fill="none" stroke="currentColor" stroke-width="2" cx="22" cy="22" r="18" opacity="0.4"/>
+      <circle fill="none" stroke="var(--accent)" stroke-width="2.5" cx="22" cy="22" r="18"
+        stroke-dasharray="113.1" stroke-dashoffset="0"
+        stroke-linecap="round" transform="rotate(-90 22 22)"/>
+      <circle fill="var(--accent)" cx="22" cy="22" r="3"/>
+    </svg>`;
+    btn.classList.add('complete-mode');
+  } else {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
+    btn.classList.remove('complete-mode');
+  }
+}
+
 function updateKachunkIcon() {
   const icon = document.getElementById('kachunkIcon');
   if (!icon) return;
   const st = playerFlatSteps[focusedStepIdx]?._state;
 
   if (st && st.status === 'paused') {
-    // Focused step is paused → play triangle (resume this step)
     icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
   } else if (!playerPlaying) {
-    // Everything stopped → play triangle (master resume)
     icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
   } else {
-    // Active → next/complete icon
     icon.innerHTML = '<path d="M5 18l7-6-7-6zM11 18l7-6-7-6z"/><path d="M18 6h2v12h-2z"/>';
   }
+
+  // Always update pause icon in sync
+  updatePauseIcon();
 }
 
 function resumeOrStartNext() {
@@ -655,12 +677,18 @@ function resumeOrStartNext() {
       s._state.status = s._state.secondsLeft > 0 ? 'running' : 'overtime';
     });
   } else {
-    // Nothing paused — start the first idle step
-    const nextIdle = playerFlatSteps.find(s => s._state?.status === 'idle');
-    if (nextIdle) {
-      nextIdle._state.status = 'running';
-      focusedStepIdx = playerFlatSteps.indexOf(nextIdle);
-      announceStep(nextIdle.label);
+    // Nothing paused — start the focused step if idle, otherwise first idle
+    const focusedSt = playerFlatSteps[focusedStepIdx]?._state;
+    if (focusedSt && focusedSt.status === 'idle') {
+      focusedSt.status = 'running';
+      announceStep(playerFlatSteps[focusedStepIdx].label);
+    } else {
+      const nextIdle = playerFlatSteps.find(s => s._state?.status === 'idle');
+      if (nextIdle) {
+        nextIdle._state.status = 'running';
+        focusedStepIdx = playerFlatSteps.indexOf(nextIdle);
+        announceStep(nextIdle.label);
+      }
     }
   }
 
@@ -718,14 +746,21 @@ function globalTick() {
     }
   });
 
-  // Handle new overtimes
-  newOvertimes.forEach(i => {
-    if (i === focusedStepIdx) {
-      playAlarmSound(getEffectiveAlarm());
-      vibrateDevice();
+  // Handle new overtimes — alarm for ALL steps, not just focused
+  if (newOvertimes.length > 0) {
+    playAlarmSound(getEffectiveAlarm());
+    vibrateDevice();
+    // If the focused step just went overtime, pulse the kachunk button
+    if (newOvertimes.includes(focusedStepIdx)) {
       document.getElementById('kachunkBtn').classList.add('ready-pulse');
     }
-  });
+    // Auto-focus the first new overtime step if current focus is idle/done
+    const focusedSt = playerFlatSteps[focusedStepIdx]?._state?.status;
+    if (focusedSt === 'idle' || focusedSt === 'done') {
+      focusedStepIdx = newOvertimes[0];
+      updateKachunkIcon();
+    }
+  }
 
   updateFocusedDisplay();
   renderPlayerSteps();
@@ -945,11 +980,11 @@ export function startChunkFromDrawer(id) {
   playerChunk = chunk;
   playerFlatSteps = flat;
   playerFlatSteps.forEach(s => initStepState(s));
-  focusedStepIdx = 0;
+  // focusedStepIdx stays at 0 for fresh start (no prior focus)
 
-  // Auto-start the first step
+  // Auto-start the focused step (not necessarily first)
   playerPlaying = true;
-  playerFlatSteps[0]._state.status = 'running';
+  playerFlatSteps[focusedStepIdx]._state.status = 'running';
   ensureTickRunning();
 }
 

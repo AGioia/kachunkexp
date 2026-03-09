@@ -685,6 +685,17 @@
   opacity: 0.85;
 }
 
+/* Pause button in complete mode — chrono dot style */
+#pauseBtn.complete-mode {
+  background: transparent;
+  border: none;
+}
+
+#pauseBtn.complete-mode svg {
+  width: 36px;
+  height: 36px;
+}
+
 .dot-step.paused .dot-timer-fill {
   stroke: var(--accent);
   opacity: 0.5;
