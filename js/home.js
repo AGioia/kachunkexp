@@ -158,8 +158,7 @@ let pressTriggered = false;
 
 
 
-let pressTimer;
-let pressTriggered = false;
+
 
 export function chronoDown(chunkId) {
   pressTriggered = false;
