@@ -41,8 +41,6 @@
 }
 
 
-.chunk-card.swiped 
-
 .card-content {
   background: var(--card);
   border-radius: var(--radius);
