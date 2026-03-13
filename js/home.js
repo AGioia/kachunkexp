@@ -122,7 +122,7 @@ export function renderHome() {
             </svg>
             <div class="ct-dot"></div>
           </button>
-          <div class="card-info" onclick="window._kachunk.openPlayer('${c.id}')" style="cursor: pointer; padding: 12px 0;">
+          <div class="card-info" onclick="window._kachunk.openPlayerScreen('${c.id}')" style="cursor: pointer; padding: 12px 0;">
             <div class="card-name">${esc(c.name || 'Untitled')}${hasSubs ? '<span class="card-has-subchunks"> &#x27C1;</span>' : ''}${active && focusedLabel ? `<span class="card-step-label"> · ${esc(focusedLabel)}</span>` : ''}</div>
             <div class="card-meta">
               <span>${stepCount} step${stepCount !== 1 ? 's' : ''}</span>
@@ -215,7 +215,7 @@ export function chronoCancel() {
 
 // ─── Card body: open player ───
 
-export function openPlayer(chunkId) {
+export function openPlayerScreen(chunkId) {
   // Just open the player view — don't auto-start the chunk
   const fn = window._kachunk._startPlayer;
   if (fn) fn(chunkId);
