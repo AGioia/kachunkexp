@@ -87,5 +87,8 @@ export function clearSchedule() {
 
 // Listen for time change
 export function initScheduleListeners() {
-  document.getElementById('scheduleTime').addEventListener('change', updateScheduleSummary);
+  const el = document.getElementById('scheduleTime');
+  if (!el || el._schedBound) return;
+  el._schedBound = true;
+  el.addEventListener('change', updateScheduleSummary);
 }
