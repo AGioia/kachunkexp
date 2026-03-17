@@ -63,8 +63,6 @@ window._kachunk = {
   toggleBgAudioPicker,
   closeBgAudioPicker,
   selectPlayerBg,
-  toggleBreadcrumb,
-  closeBreadcrumb,
   scrollToStep,
 
   // Loop
@@ -131,3 +129,4 @@ if ('serviceWorker' in navigator) {
 renderHome();
 
 // Ready
+ady
