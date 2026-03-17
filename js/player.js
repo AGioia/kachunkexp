@@ -530,6 +530,7 @@ function switchPlayerView(eng) {
   renderPlayerSteps();
   updateFocusedDisplay();
   initPlayerDOM();
+  initPullToPop();
   
   const ptEl = document.getElementById('playerParentTitle');
   if (eng.viewPath.length === 0) {
@@ -1292,4 +1293,23 @@ export function playerPopUp() {
   eng.viewPath = eng.viewPath.slice(0, -1);
   playUiSound('boop');
   switchPlayerView(eng);
+}
+let pullStartY = null;
+
+function initPullToPop() {
+  const list = DOM.playerStepsList;
+  if (!list || list._pullToPopBound) return;
+  list._pullToPopBound = true;
+
+  list.addEventListener('touchstart', (e) => {
+    if (list.scrollTop <= 0) pullStartY = e.touches[0].clientY;
+    else pullStartY = null;
+  }, { passive: true });
+
+  list.addEventListener('touchend', (e) => {
+    if (pullStartY == null) return;
+    const endY = e.changedTouches[0].clientY;
+    if (endY - pullStartY > 80) playerPopUp();
+    pullStartY = null;
+  }, { passive: true });
 }
