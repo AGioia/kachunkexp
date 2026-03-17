@@ -83,7 +83,10 @@
     <button class="back-btn" onclick="window._kachunk.goBackToDrawer()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
     </button>
-    <div class="player-title" id="playerTitle">—</div>
+     <div class="player-title-box" style="display:flex; flex-direction:column; align-items:flex-start; margin-left: 8px;">
+      <div id="playerParentTitle" style="font-size: 11px; color: var(--accent); font-weight: 600; cursor: pointer; display: none;" onclick="window._kachunk.playerPopUp()">⤺ Parent</div>
+      <div class="player-title" id="playerTitle" style="margin-left: 0;">—</div>
+    </div>
     <div class="player-audio-row">
       <button class="player-audio-btn" id="voiceToggleBtn" onclick="window._kachunk.toggleVoiceInPlayer()" aria-label="Toggle voice" title="Voice">♪</button>
       <button class="player-audio-btn" id="bgAudioBtn" onclick="window._kachunk.toggleBgAudioPicker()" aria-label="Background audio" title="Background">◎</button>
@@ -91,21 +94,10 @@
   </div>
   <div class="player-body">
     <!-- Breadcrumb (collapsed by default) -->
-    <div class="breadcrumb-bar" id="breadcrumbBar">
-      <button class="breadcrumb-toggle" id="breadcrumbToggle" onclick="window._kachunk.toggleBreadcrumb()">
-        <span class="breadcrumb-current" id="breadcrumbCurrent"></span>
-        <svg class="breadcrumb-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6l4 4 4-4"/></svg>
-      </button>
-      <div class="breadcrumb-expanded" id="breadcrumbExpanded"></div>
-    </div>
+    
 
-    <!-- Player main area: dot sidebar + chrono -->
+    <!-- Player main area: chrono -->
     <div class="player-main-area">
-      <!-- Dot Sidebar (minimap) -->
-      <div class="dot-sidebar" id="dotSidebar">
-        <div class="dot-sidebar-track" id="dotSidebarTrack"></div>
-      </div>
-
       <!-- Chronometer Face -->
       <div class="chrono-container">
         <div class="chrono-face" id="chronoFace"

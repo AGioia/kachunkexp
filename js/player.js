@@ -38,7 +38,8 @@ class ChunkEngine {
     // Loop system
     this.loopGroups = [];      // [{ steps: [idx, idx, ...], mode: 'halt'|'auto', laps: 0 }]
     this.loopSelectMode = false;
-    this.loopSelectGroupIdx = 0; // which group is being edited/viewed
+    this.loopSelectGroupIdx = 0;
+    this.viewPath = []; // which group is being edited/viewed
     flatSteps.forEach(s => this._initStep(s));
   }
 
@@ -525,12 +526,32 @@ function renderChronoTicks() {
 function switchPlayerView(eng) {
   viewingId = eng.id;
   renderChronoTicks();
-  renderDotSidebar();
+  
   renderPlayerSteps();
   updateFocusedDisplay();
   initPlayerDOM();
-  DOM.playerTitle.textContent = eng.chunk.name;
-  DOM.breadcrumbBar.classList.remove('expanded');
+  
+  const ptEl = document.getElementById('playerParentTitle');
+  if (eng.viewPath.length === 0) {
+    DOM.playerTitle.textContent = eng.chunk.name;
+    if (ptEl) ptEl.style.display = 'none';
+  } else {
+    // Find the wrapper step for our current path
+    const wrapper = eng.flatSteps.find(s => s.isWrapper && s.path.join('-') === eng.viewPath.join('-'));
+    DOM.playerTitle.textContent = wrapper ? wrapper.name : eng.chunk.name;
+    if (ptEl) {
+      ptEl.style.display = 'block';
+      let parentName = eng.chunk.name;
+      if (eng.viewPath.length > 1) {
+        const pPath = eng.viewPath.slice(0, -1);
+        const pWrap = eng.flatSteps.find(s => s.isWrapper && s.path.join('-') === pPath.join('-'));
+        if (pWrap) parentName = pWrap.name;
+      }
+      ptEl.textContent = '⤺ ' + parentName;
+    }
+  }
+
+  
   updateKachunkIcon();
   const s = loadAudioSettings();
   const voiceBtn = DOM.voiceToggleBtn;
@@ -572,7 +593,7 @@ function updateFocusedDisplay() {
   DOM.playerStepCount.textContent = t;
 
   updateChronoRings();
-  updateBreadcrumb();
+  
 }
 
 function updateChronoRings() {
@@ -655,21 +676,84 @@ function resetOvertimeTicks() {
 
 // ─── Step List (no auto-scroll to chrono) ───
 
+
 function renderPlayerSteps() {
   const eng = viewingEngine();
   if (!eng) return;
   const container = DOM.playerStepsList;
-  container.innerHTML = eng.flatSteps.map((s, i) => {
+  
+  // Filter steps to ONLY show those at the current viewPath
+  // A step belongs here if its path length string matches current viewPath EXACTLY
+  // For 'wrappers' (chunks), their path is their OWN path, and their children are deeper.
+  const viewPathStr = eng.viewPath.join('-');
+  
+  const visibleSteps = eng.flatSteps.map((s, idx) => ({...s, originalIndex: idx}))
+    .filter(s => {
+      const parentPathStr = s.path.slice(0, -1).join('-');
+      if (s.isWrapper) {
+        return parentPathStr === viewPathStr;
+      }
+      // Normal steps are visible when they are direct children of the current view level
+      return parentPathStr === viewPathStr;
+    })
+    .filter((s, idx, arr) => {
+      // Hide normal steps that belong inside a wrapper shown at this same level.
+      if (s.isWrapper) return true;
+      const wrappedHere = arr.find(w => w.isWrapper && s.path.slice(0, w.path.length).join('-') === w.path.join('-'));
+      return !wrappedHere;
+    });
+
+  container.innerHTML = visibleSteps.map((s) => {
+    const rawIdx = s.originalIndex;
+    if (s.isWrapper) {
+      // Look at children to compute aggregate status
+      const kids = eng.flatSteps.filter(k => !k.isWrapper && k.path.slice(0, s.path.length).join('-') === s.path.join('-'));
+      const activeKids = kids.filter(k => k._state.status === 'running' || k._state.status === 'overtime').length;
+      const doneKids = kids.filter(k => k._state.status === 'done').length;
+      const isDone = kids.length > 0 && doneKids === kids.length;
+      
+      let cls = 'player-step wrapper-step';
+      if (isDone) cls += ' completed';
+      else if (activeKids > 0) cls += ' current';
+      
+      const inView = eng.focusedIdx >= s.originalIndex && eng.focusedIdx < s.originalIndex + s.subCount + 1;
+      if (inView) cls += ' focused';
+      
+      const icon = isDone ? '&#x2713;' : (activeKids > 0 ? '&#x25CF;' : '&#x27C1;');
+      
+      let timerHtml = '';
+      if (activeKids > 0) {
+         timerHtml = `<span class="psi-timer">${activeKids} active</span>`;
+      } else if (isDone) {
+         timerHtml = `<span class="psi-timer">${s.subCount} done</span>`;
+      } else {
+         timerHtml = `<span class="psi-timer">${s.subCount} steps</span>`;
+      }
+
+      return `
+        <div class="${cls}" data-path="${s.path.join('-')}" 
+             ontouchstart="window._kachunk.wrapperDown('${s.path.join('-')}')"
+             ontouchend="window._kachunk.wrapperUp('${s.path.join('-')}')"
+             onmousedown="window._kachunk.wrapperDown('${s.path.join('-')}')"
+             onmouseup="window._kachunk.wrapperUp('${s.path.join('-')}')"
+             onclick="return false">
+          <div class="psi-icon" style="font-size:16px;">${icon}</div>
+          <div class="psi-content">
+            <div class="psi-label">${esc(s.name)}</div>
+          </div>
+          ${timerHtml}
+        </div>
+      `;
+    }
+
+    // NORMAL STEP RENDERING
     const st = s._state;
     let cls = '';
     if (st.status === 'done') cls = 'completed';
     else if (st.status === 'running') cls = 'current';
     else if (st.status === 'overtime') cls = 'current overtime';
     else if (st.status === 'paused') cls = 'paused';
-    if (i === eng.focusedIdx) cls += ' focused';
-
-    const sourceHtml = s.sourceChunk
-      ? `<div class="psi-source"><span class="link-icon">&#x27C1;</span> ${esc(s.sourceChunk)}</div>` : '';
+    if (rawIdx === eng.focusedIdx) cls += ' focused';
 
     const { secondsLeft: sl, overtimeSeconds: ot } = ChunkEngine.calc(st);
     let timerHtml = '';
@@ -687,129 +771,20 @@ function renderPlayerSteps() {
 
     const icon = st.status === 'done' ? '&#x2713;'
       : (st.status === 'running' || st.status === 'overtime') ? '&#x25CF;'
-      : st.status === 'paused' ? '&#x25CB;' : (i + 1);
+      : st.status === 'paused' ? '&#x25CB;' : '&#x25CB;'; // dot instead of numbers inside nest
 
-    // Loop group indicator
-    const gi = eng.getStepLoopGroup(i);
-    const loopColor = gi !== -1 ? LOOP_COLORS[gi % LOOP_COLORS.length] : '';
-    const loopSeq = gi !== -1 ? eng.getStepLoopSeq(i) + 1 : 0;
-    const inSelectGroup = eng.loopSelectMode && gi === eng.loopSelectGroupIdx;
-    const barWidth = eng.loopSelectMode && gi !== -1 ? (inSelectGroup ? '5px' : '3px') : (gi !== -1 ? '2px' : '0');
-    const loopBarHtml = gi !== -1
-      ? `<div class="psi-loop-bar${inSelectGroup ? ' selecting' : ''}" style="background:${loopColor};width:${barWidth}"><span class="psi-loop-seq">${loopSeq}</span></div>`
-      : (eng.loopSelectMode ? '<div class="psi-loop-bar empty"></div>' : '');
-
-    // Loop mode toggle (only in select mode)
-    const loopModeHtml = eng.loopSelectMode && gi !== -1
-      ? `<button class="psi-loop-mode" onclick="event.stopPropagation();window._kachunk.loopStepToggleMode(${i})" title="${eng.getStepLoopMode(i) === 'auto' ? 'Auto' : 'Halt'}">${eng.getStepLoopMode(i) === 'auto' ? '&#x25B6;' : '&#x25CF;'}</button>`
-      : '';
-
-    // In loop select mode, tapping a step toggles it in the group
-    const tapHandler = eng.loopSelectMode
-      ? `window._kachunk.loopStepTap(${i})`
-      : `window._kachunk.onStepTap(${i})`;
-
-    return `<div class="player-step-item ${cls}" onclick="${tapHandler}">
-        ${loopBarHtml}
-        <div class="psi-num">${icon}</div>
-        <div class="psi-label-wrap">${sourceHtml}<div class="psi-label">${esc(s.label || 'Step ' + (i + 1))}</div></div>
-        ${timerHtml}${loopModeHtml}<div class="psi-dur">${s.minutes}m</div>
-      </div>`;
+    return `
+      <div class="player-step ${cls}" onclick="window._kachunk.onStepTap(${rawIdx})">
+        <div class="psi-icon">${icon}</div>
+        <div class="psi-content">
+          <div class="psi-label">${esc(s.label || 'Step')}</div>
+        </div>
+        ${timerHtml}
+      </div>
+    `;
   }).join('');
 }
 
-// ─── Dot Sidebar ───
-
-function renderDotSidebar() {
-  const eng = viewingEngine();
-  const track = DOM.dotSidebarTrack;
-  if (!track || !eng) return;
-  track.innerHTML = eng.flatSteps.map((step, i) => {
-    const dc = step.depth > 0 ? ` depth-${Math.min(step.depth, 3)}` : '';
-    return `<div class="dot-step${dc}" data-dot-idx="${i}" onclick="window._kachunk.focusStep(${i})">
-      <div class="dot-timer"><svg viewBox="0 0 10 10"><circle class="dot-timer-fill" cx="5" cy="5" r="3" stroke-dasharray="${2 * Math.PI * 3}" stroke-dashoffset="${2 * Math.PI * 3}" transform="rotate(-90 5 5)"/></svg></div>
-    </div>`;
-  }).join('');
-}
-
-function updateDotSidebar() {
-  const eng = viewingEngine();
-  if (!eng) return;
-  const dots = document.querySelectorAll('.dot-step');
-  const circ = 2 * Math.PI * 3;
-  dots.forEach((dot, i) => {
-    const st = eng.flatSteps[i]?._state;
-    if (!st) return;
-    dot.classList.remove('completed', 'current', 'overtime', 'paused');
-    const fill = dot.querySelector('.dot-timer-fill');
-    const { secondsLeft: sl } = ChunkEngine.calc(st);
-    if (st.status === 'done') {
-      dot.classList.add('completed'); if (fill) fill.style.strokeDashoffset = '0';
-    } else if (st.status === 'running') {
-      dot.classList.add('current');
-      const pct = st.totalSeconds > 0 ? (st.totalSeconds - sl) / st.totalSeconds : 0;
-      if (fill) fill.style.strokeDashoffset = circ * (1 - pct);
-    } else if (st.status === 'overtime') {
-      dot.classList.add('current', 'overtime'); if (fill) fill.style.strokeDashoffset = '0';
-    } else if (st.status === 'paused') {
-      dot.classList.add('paused');
-      const pct = st.totalSeconds > 0 ? (st.totalSeconds - sl) / st.totalSeconds : 0;
-      if (fill) fill.style.strokeDashoffset = circ * (1 - pct);
-    } else {
-      if (fill) fill.style.strokeDashoffset = `${circ}`;
-    }
-  });
-  // Don't auto-scroll — respect user's scroll position
-}
-
-// ─── Breadcrumb ───
-
-function updateBreadcrumb() {
-  const eng = viewingEngine();
-  if (!eng) return;
-  const step = eng.focusedStep();
-  const currentEl = DOM.breadcrumbCurrent;
-  const expandedEl = DOM.breadcrumbExpanded;
-  if (!step || !eng.chunk) return;
-
-  const crumbs = [{ name: eng.chunk.name, depth: 0 }];
-  if (step.sourceChunk) crumbs.push({ name: step.sourceChunk, depth: step.depth });
-  currentEl.textContent = crumbs.length <= 1 ? crumbs[0].name : crumbs.map(c => c.name).join(' > ');
-  expandedEl.innerHTML = crumbs.map((c, i) => {
-    const isActive = i === crumbs.length - 1;
-    return `<button class="breadcrumb-item ${isActive ? 'bc-active' : ''}" onclick="window._kachunk.closeBreadcrumb()">
-      <span class="bc-depth">${i}</span><span class="bc-name">${esc(c.name)}</span></button>`;
-  }).join('');
-}
-
-export function toggleBreadcrumb() { DOM.breadcrumbBar.classList.toggle('expanded'); }
-export function closeBreadcrumb() { DOM.breadcrumbBar.classList.remove('expanded'); }
-export function scrollToStep(idx) {
-  const items = document.querySelectorAll('.player-step-item');
-  if (items[idx]) items[idx].scrollIntoView({ block: 'center', behavior: 'smooth' });
-}
-
-// ─── Control Button Icons ───
-
-function updatePauseIcon() {
-  const btn = DOM.pauseBtn;
-  if (!btn) return;
-  const eng = viewingEngine();
-  const st = eng?.focusedState();
-  const { secondsLeft: psl } = st ? ChunkEngine.calc(st) : { secondsLeft: 1 };
-  if (st && (st.status === 'overtime' || (st.status === 'paused' && psl <= 0))) {
-    btn.innerHTML = `<svg viewBox="0 0 44 44">
-      <circle fill="none" stroke="currentColor" stroke-width="2" cx="22" cy="22" r="18" opacity="0.4"/>
-      <circle fill="none" stroke="var(--accent)" stroke-width="2.5" cx="22" cy="22" r="18"
-        stroke-dasharray="113.1" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 22 22)"/>
-      <circle fill="var(--accent)" cx="22" cy="22" r="3"/>
-    </svg>`;
-    btn.classList.add('complete-mode');
-  } else {
-    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
-    btn.classList.remove('complete-mode');
-  }
-}
 
 function updateKachunkIcon() {
   const icon = DOM.kachunkIcon;
@@ -1278,3 +1253,42 @@ export function getPlayerProgress(id) {
 }
 export function isEngineActive(id) { return engines.has(id); }
 export function isEnginePlaying(id) { return engines.get(id)?.playing || false; }
+
+// ─── Experimental Wrapper & Navigation Gestures ───
+let wrpTimer;
+let wrpTriggered = false;
+
+export function wrapperDown(pathStr) {
+  wrpTriggered = false;
+  wrpTimer = setTimeout(() => {
+    wrpTriggered = true;
+    playerGoDeeper(pathStr);
+  }, 500);
+}
+
+export function wrapperUp(pathStr) {
+  clearTimeout(wrpTimer);
+  if (wrpTriggered) return;
+  const eng = viewingEngine();
+  if (!eng) return;
+  const wrapIdx = eng.flatSteps.findIndex(s => s.isWrapper && s.path.join('-') === pathStr);
+  if (wrapIdx !== -1 && wrapIdx + 1 < eng.flatSteps.length) {
+    onStepTap(wrapIdx + 1);
+  }
+}
+
+export function playerGoDeeper(pathStr) {
+  const eng = viewingEngine();
+  if (!eng) return;
+  eng.viewPath = pathStr ? pathStr.split('-').map(Number) : [];
+  playUiSound('boop');
+  switchPlayerView(eng);
+}
+
+export function playerPopUp() {
+  const eng = viewingEngine();
+  if (!eng || eng.viewPath.length === 0) return;
+  eng.viewPath = eng.viewPath.slice(0, -1);
+  playUiSound('boop');
+  switchPlayerView(eng);
+}
