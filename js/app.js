@@ -76,6 +76,10 @@ window._kachunk = {
   chronoDialStart,
   chronoDialMove,
   chronoDialEnd,
+  wrapperDown,
+  wrapperUp,
+  playerGoDeeper,
+  playerPopUp,
 
   // Schedule
   toggleDay,
