@@ -49,8 +49,8 @@ class ChunkEngine {
       status: 'idle',
       totalSeconds: total,
       // Wall-clock based timing:
-      startedAt: null,       // Date.now() when step began running
-      priorElapsed: 0,       // seconds accumulated before current run (from pauses)
+      startedAt: null,
+      priorElapsed: 0,
     };
   }
 
@@ -84,13 +84,13 @@ class ChunkEngine {
     return { secondsLeft: st.totalSeconds, overtimeSeconds: 0 };
   }
 
-  getRunning()  { return this.flatSteps.filter(s => s._state.status === 'running' || s._state.status === 'overtime'); }
-  getPaused()   { return this.flatSteps.filter(s => s._state.status === 'paused'); }
-  getOvertime() { return this.flatSteps.filter(s => s._state.status === 'overtime'); }
-  allDone()     { return this.flatSteps.every(s => s._state.status === 'done'); }
+  getRunning()  { return this.flatSteps.filter(s => !s.isWrapper && (s._state.status === 'running' || s._state.status === 'overtime')); }
+  getPaused()   { return this.flatSteps.filter(s => !s.isWrapper && s._state.status === 'paused'); }
+  getOvertime() { return this.flatSteps.filter(s => !s.isWrapper && s._state.status === 'overtime'); }
+  allDone()     { return this.flatSteps.filter(s => !s.isWrapper).every(s => s._state.status === 'done'); }
 
   totalDurationSecs() {
-    return this.flatSteps.reduce((sum, s) => sum + Math.round((parseFloat(s.minutes) || 1) * 60), 0);
+    return this.flatSteps.filter(s => !s.isWrapper).reduce((sum, s) => sum + Math.round((parseFloat(s.minutes) || 1) * 60), 0);
   }
 
   totalElapsed() {
@@ -585,8 +585,9 @@ function updateFocusedDisplay() {
 
   const running = eng.getRunning().length, paused = eng.getPaused().length;
   const overtime = eng.getOvertime().length;
-  const done = eng.flatSteps.filter(s => s._state.status === 'done').length;
-  let t = `${done}/${eng.flatSteps.length} done`;
+  const realSteps = eng.flatSteps.filter(s => !s.isWrapper);
+  const done = realSteps.filter(s => s._state.status === 'done').length;
+  let t = `${done}/${realSteps.length} done`;
   if (running > 0) t += ` · ${running} active`;
   if (paused > 0) t += ` · ${paused} paused`;
   if (overtime > 0) t += ` · ${overtime} overtime`;

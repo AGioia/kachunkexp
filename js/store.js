@@ -176,6 +176,21 @@ export function flattenChunk(chunk, allChunks, visited, depth, parentPath) {
     if (stepType === 'chunk') {
       const sub = allChunks.find(c => c.id === step.chunkId);
       if (sub) {
+        // Wrapper node for boxed nesting UI
+        result.push({
+          label: sub.name,
+          name: sub.name,
+          minutes: getTotalDuration(sub, allChunks),
+          sound: step.sound,
+          sourceChunk: null,
+          sourceChunkId: sub.id,
+          depth: depth,
+          path: currentPath,
+          locked: !!step.locked,
+          isWrapper: true,
+          subCount: getFlatStepCount(sub, allChunks),
+        });
+
         // If this sub-chunk is locked, use the snapshot instead of live data
         if (step.locked && step.snapshot) {
           step.snapshot.forEach((snapStep, snapIdx) => {
@@ -188,6 +203,7 @@ export function flattenChunk(chunk, allChunks, visited, depth, parentPath) {
               depth: depth + 1,
               path: [...currentPath, snapIdx],
               locked: true,
+              isWrapper: false,
             });
           });
         } else {
