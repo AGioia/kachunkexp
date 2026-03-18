@@ -676,6 +676,20 @@ function resetOvertimeTicks() {
   document.querySelectorAll('#chronoTicks .tick.overtime').forEach(t => t.classList.remove('overtime'));
 }
 
+function updateDotSidebar() {
+  const eng = viewingEngine();
+  const track = DOM.dotSidebarTrack || document.getElementById('dotSidebarTrack');
+  if (!eng || !track) return;
+
+  const depth = Math.max(1, (eng.viewPath?.length || 0) + 1);
+  let html = '';
+  for (let i = 0; i < depth; i++) {
+    const active = i === depth - 1 ? ' active' : '';
+    html += `<div class="dot-step${active}"><div class="dot-timer"><svg viewBox="0 0 10 10"><circle class="dot-timer-fill" cx="5" cy="5" r="3" /></svg></div></div>`;
+  }
+  track.innerHTML = html;
+}
+
 // ─── Step List (no auto-scroll to chrono) ───
 
 
