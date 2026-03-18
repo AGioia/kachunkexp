@@ -129,10 +129,3 @@ if ('serviceWorker' in navigator) {
 renderHome();
 
 // Ready
-ady
-y
-);
-
-// Ready
-ady
-y
