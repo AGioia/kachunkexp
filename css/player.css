@@ -927,4 +927,7 @@
   animation: loopShimmer 3s ease-in-out infinite;
 }
 
-.wrapper-step { background: rgba(240,235,227,0.03); border: 1px solid rgba(240,235,227,0.08); border-radius: 12px; margin-bottom: 8px; }
+.wrapper-step { background: rgba(240,235,227,0.03); }
+.psi-wrapper-dots { display:flex; gap:4px; margin-top:4px; }
+.psi-wrapper-dot { width:5px; height:5px; border-radius:50%; background:rgba(240,235,227,0.18); display:inline-block; }
+.psi-wrapper-dot.active { background: var(--accent); }

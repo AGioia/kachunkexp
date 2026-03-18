@@ -789,13 +789,25 @@ function renderPlayerSteps() {
       : (st.status === 'running' || st.status === 'overtime') ? '&#x25CF;'
       : st.status === 'paused' ? '&#x25CB;' : '&#x25CB;'; // dot instead of numbers inside nest
 
+    const gi = eng.getStepLoopGroup(rawIdx);
+    const loopColor = gi !== -1 ? LOOP_COLORS[gi % LOOP_COLORS.length] : '';
+    const loopSeq = gi !== -1 ? eng.getStepLoopSeq(rawIdx) + 1 : 0;
+    const inSelectGroup = eng.loopSelectMode && gi === eng.loopSelectGroupIdx;
+    const barWidth = eng.loopSelectMode && gi !== -1 ? (inSelectGroup ? '5px' : '3px') : (gi !== -1 ? '2px' : '0');
+    const loopBarHtml = gi !== -1
+      ? `<div class="psi-loop-bar${inSelectGroup ? ' selecting' : ''}" style="background:${loopColor};width:${barWidth}"><span class="psi-loop-seq">${loopSeq}</span></div>`
+      : (eng.loopSelectMode ? '<div class="psi-loop-bar empty"></div>' : '<div class="psi-loop-bar empty"></div>');
+
+    const tapHandler = eng.loopSelectMode
+      ? `window._kachunk.loopStepTap(${rawIdx})`
+      : `window._kachunk.onStepTap(${rawIdx})`;
+
     return `
-      <div class="player-step ${cls}" onclick="window._kachunk.onStepTap(${rawIdx})">
-        <div class="psi-icon">${icon}</div>
-        <div class="psi-content">
-          <div class="psi-label">${esc(s.label || 'Step')}</div>
-        </div>
-        ${timerHtml}
+      <div class="player-step-item ${cls}" onclick="${tapHandler}">
+        ${loopBarHtml}
+        <div class="psi-num">${icon}</div>
+        <div class="psi-label-wrap"><div class="psi-label">${esc(s.label || 'Step')}</div></div>
+        ${timerHtml}<div class="psi-dur">${s.minutes}m</div>
       </div>
     `;
   }).join('');
