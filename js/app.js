@@ -25,6 +25,7 @@ window._kachunk = {
   _startPlayer: startPlayer,
   _openEditor: openEditor,
   _openSchedule: openSchedule,
+  _engines: engines,
 
   // Editor
   createNewChunk,
@@ -126,6 +127,11 @@ if ('serviceWorker' in navigator) {
 
 // ─── Initial Render ───
 renderHome();
+
+// Ready
+ady
+y
+);
 
 // Ready
 ady

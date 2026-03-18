@@ -787,6 +787,17 @@ function renderPlayerSteps() {
   }).join('');
 }
 
+function updatePauseIcon() {
+  const btn = DOM.pauseBtn || document.getElementById('pauseBtn');
+  if (!btn) return;
+  const eng = viewingEngine();
+  const st = eng?.focusedStep()?._state;
+  if (st && st.status === 'done') {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7" opacity="0.2"/><circle cx="12" cy="12" r="2.2"/></svg>';
+  } else {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
+  }
+}
 
 function updateKachunkIcon() {
   const icon = DOM.kachunkIcon;
