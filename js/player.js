@@ -376,7 +376,7 @@ class ChunkEngine {
 // Engine Registry — multiple engines, single tick
 // ═══════════════════════════════════════════════════
 
-const engines = new Map();   // chunkId → ChunkEngine
+export const engines = new Map();   // chunkId → ChunkEngine
 let viewingId = null;        // which engine the player screen is showing
 let globalTickInterval = null;
 
