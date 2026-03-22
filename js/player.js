@@ -771,11 +771,13 @@ function renderPlayerSteps() {
     const loopBarHtml = gi !== -1 ? `<div class="psi-loop-bar${inSelectGroup ? ' selecting' : ''}" style="background:${loopColor};width:${barWidth}"><span class="psi-loop-seq">${loopSeq}</span></div>` : (eng.loopSelectMode ? '<div class="psi-loop-bar empty"></div>' : '<div class="psi-loop-bar empty"></div>');
     const tapHandler = eng.loopSelectMode ? `window._kachunk.loopStepTap(${rawIdx})` : `window._kachunk.onStepTap(${rawIdx})`;
 
+    const sourceHtml = s.sourceChunk ? `<div class="psi-source"><span class="link-icon">⟡</span> ${esc(s.sourceChunk)}</div>` : '';
+    const groupShade = depth > 0 ? `background: rgba(240,235,227,${Math.min(0.018 * depth, 0.08)}); box-shadow: inset 1px 0 0 rgba(240,235,227,0.06);` : '';
     return `
-      <div class="player-step-item ${cls}" onclick="${tapHandler}" style="margin-left:${indent}px;">
+      <div class="player-step-item ${cls}" onclick="${tapHandler}" style="margin-left:${indent}px; ${groupShade}">
         ${loopBarHtml}
         <div class="psi-num">${icon}</div>
-        <div class="psi-label-wrap"><div class="psi-label">${esc(s.label || 'Step')}</div></div>
+        <div class="psi-label-wrap">${sourceHtml}<div class="psi-label">${esc(s.label || 'Step')}</div></div>
         ${timerHtml}<div class="psi-dur">${s.minutes}m</div>
       </div>
     `;
