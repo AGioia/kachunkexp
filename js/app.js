@@ -7,7 +7,7 @@ import { initIdentity } from './identity.js';
 import { onNavigate, goHome } from './router.js';
 import { renderHome, openPlayerScreen, editChunk, chronoDown, chronoUp, chronoCancel } from './home.js';
 import { createNewChunk, openEditor, addStep, removeStep, moveStep, updateStepLabel, updateStepMinutes, toggleSubPreview, openStepSoundPicker, pickStepSound, openChunkPicker, closeChunkPicker, pickSubChunk, selectEditAlarm, selectEditBg, toggleLock, deleteChunkFromEditor } from './editor.js';
-import { engines, startPlayer, openPlayerView, togglePlay, kachunkAction, smartPause, restartDown, restartUp, restartCancel, playerNext, playerPrev, jumpToStep, onStepTap, focusStep, goBackToDrawer, stopAndGoHome, closeCompletion, toggleVoiceInPlayer, toggleBgAudioPicker, closeBgAudioPicker, selectPlayerBg, loopBtnDown, loopBtnUp, loopBtnCancel, loopStepTap, loopStepToggleMode, chronoDialStart, chronoDialMove, chronoDialEnd, wrapperDown, wrapperUp, playerGoDeeper, playerPopUp } from './player.js';
+import { engines, startPlayer, openPlayerView, togglePlay, kachunkAction, smartPause, restartDown, restartUp, restartCancel, playerNext, playerPrev, jumpToStep, onStepTap, focusStep, goBackToDrawer, stopAndGoHome, closeCompletion, toggleVoiceInPlayer, toggleBgAudioPicker, closeBgAudioPicker, selectPlayerBg, loopBtnDown, loopBtnUp, loopBtnCancel, loopStepTap, loopStepToggleMode, chronoDialStart, chronoDialMove, chronoDialEnd, wrapperToggle } from './player.js';
 import { openSchedule, toggleDay, saveSchedule, clearSchedule, initScheduleListeners } from './schedule.js';
 import { openAudioSettings, closeAudioSettings, selectAlarmSound, selectBgSound, toggleSettingSwitch, onVolumeChange } from './audio-settings.js';
 import { closeConfirm, executeConfirm } from './ui.js';
@@ -74,10 +74,7 @@ window._kachunk = {
   chronoDialStart,
   chronoDialMove,
   chronoDialEnd,
-  wrapperDown,
-  wrapperUp,
-  playerGoDeeper,
-  playerPopUp,
+  wrapperToggle,
 
   // Schedule
   toggleDay,
@@ -129,3 +126,4 @@ if ('serviceWorker' in navigator) {
 renderHome();
 
 // Ready
+Ready

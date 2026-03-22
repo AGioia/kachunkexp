@@ -39,7 +39,7 @@ class ChunkEngine {
     this.loopGroups = [];      // [{ steps: [idx, idx, ...], mode: 'halt'|'auto', laps: 0 }]
     this.loopSelectMode = false;
     this.loopSelectGroupIdx = 0;
-    this.viewPath = []; // which group is being edited/viewed
+    this.expandedPaths = new Set(); // inline expand/collapse state
     flatSteps.forEach(s => this._initStep(s));
   }
 
@@ -533,26 +533,9 @@ function switchPlayerView(eng) {
   initPullToPop();
   
   const ptEl = document.getElementById('playerParentTitle');
-  if (eng.viewPath.length === 0) {
-    DOM.playerTitle.textContent = eng.chunk.name;
-    if (ptEl) ptEl.style.display = 'none';
-  } else {
-    // Find the wrapper step for our current path
-    const wrapper = eng.flatSteps.find(s => s.isWrapper && s.path.join('-') === eng.viewPath.join('-'));
-    DOM.playerTitle.textContent = wrapper ? wrapper.name : eng.chunk.name;
-    if (ptEl) {
-      ptEl.style.display = 'block';
-      let parentName = eng.chunk.name;
-      if (eng.viewPath.length > 1) {
-        const pPath = eng.viewPath.slice(0, -1);
-        const pWrap = eng.flatSteps.find(s => s.isWrapper && s.path.join('-') === pPath.join('-'));
-        if (pWrap) parentName = pWrap.name;
-      }
-      ptEl.textContent = '⤺ ' + parentName;
-    }
-  }
+  DOM.playerTitle.textContent = eng.chunk.name;
+  if (ptEl) ptEl.style.display = 'none';
 
-  
   updateKachunkIcon();
   const s = loadAudioSettings();
   const voiceBtn = DOM.voiceToggleBtn;
@@ -681,10 +664,11 @@ function updateDotSidebar() {
   const track = DOM.dotSidebarTrack || document.getElementById('dotSidebarTrack');
   if (!eng || !track) return;
 
-  const depth = Math.max(1, (eng.viewPath?.length || 0) + 1);
+  const maxDepth = Math.max(1, ...eng.flatSteps.map(s => (s.path?.length || 1)));
+  const currentDepth = Math.max(1, ((eng.focusedStep()?.path?.length || 1)));
   let html = '';
-  for (let i = 0; i < depth; i++) {
-    const active = i === depth - 1 ? ' active' : '';
+  for (let i = 0; i < maxDepth; i++) {
+    const active = i === currentDepth - 1 ? ' active' : '';
     html += `<div class="dot-step${active}"><div class="dot-timer"><svg viewBox="0 0 10 10"><circle class="dot-timer-fill" cx="5" cy="5" r="3" /></svg></div></div>`;
   }
   track.innerHTML = html;
@@ -697,72 +681,61 @@ function renderPlayerSteps() {
   const eng = viewingEngine();
   if (!eng) return;
   const container = DOM.playerStepsList;
-  
-  // Filter steps to ONLY show those at the current viewPath
-  // A step belongs here if its path length string matches current viewPath EXACTLY
-  // For 'wrappers' (chunks), their path is their OWN path, and their children are deeper.
-  const viewPathStr = eng.viewPath.join('-');
-  
-  const visibleSteps = eng.flatSteps.map((s, idx) => ({...s, originalIndex: idx}))
-    .filter(s => {
-      const parentPathStr = s.path.slice(0, -1).join('-');
-      if (s.isWrapper) {
-        return parentPathStr === viewPathStr;
-      }
-      // Normal steps are visible when they are direct children of the current view level
-      return parentPathStr === viewPathStr;
-    })
-    .filter((s, idx, arr) => {
-      // Hide normal steps that belong inside a wrapper shown at this same level.
-      if (s.isWrapper) return true;
-      const wrappedHere = arr.find(w => w.isWrapper && s.path.slice(0, w.path.length).join('-') === w.path.join('-'));
-      return !wrappedHere;
-    });
+
+  const isVisibleRow = (row) => {
+    const ancestors = row.path.slice(0, -1);
+    for (let i = 1; i <= ancestors.length; i++) {
+      const ancestorPath = ancestors.slice(0, i).join('-');
+      if (!eng.expandedPaths.has(ancestorPath)) return false;
+    }
+    return true;
+  };
+
+  const visibleSteps = eng.flatSteps
+    .map((s, idx) => ({ ...s, originalIndex: idx }))
+    .filter(isVisibleRow);
 
   container.innerHTML = visibleSteps.map((s) => {
     const rawIdx = s.originalIndex;
+    const depth = Math.max(0, (s.path?.length || 1) - 1);
+    const indent = Math.min(depth * 14, 48);
+
     if (s.isWrapper) {
-      // Look at children to compute aggregate status
       const kids = eng.flatSteps.filter(k => !k.isWrapper && k.path.slice(0, s.path.length).join('-') === s.path.join('-'));
       const activeKids = kids.filter(k => k._state.status === 'running' || k._state.status === 'overtime').length;
       const doneKids = kids.filter(k => k._state.status === 'done').length;
       const isDone = kids.length > 0 && doneKids === kids.length;
-      
-      let cls = 'player-step wrapper-step';
+      const expanded = eng.expandedPaths.has(s.path.join('-'));
+
+      let cls = 'player-step-item wrapper-step';
       if (isDone) cls += ' completed';
       else if (activeKids > 0) cls += ' current';
-      
-      const inView = eng.focusedIdx >= s.originalIndex && eng.focusedIdx < s.originalIndex + s.subCount + 1;
-      if (inView) cls += ' focused';
-      
-      const icon = isDone ? '&#x2713;' : (activeKids > 0 ? '&#x25CF;' : '&#x27C1;');
-      
+      if (eng.focusedIdx === rawIdx) cls += ' focused';
+
+      const icon = expanded ? '&#x2304;' : '&#x27C1;';
+      const runningDots = Math.min(activeKids, 6);
+      const dotRow = runningDots > 0
+        ? '<div class="psi-wrapper-dots">' + Array.from({ length: runningDots }).map(() => '<span class="psi-wrapper-dot active"></span>').join('') + '</div>'
+        : '<div class="psi-wrapper-dots">' + Array.from({ length: Math.min(s.subCount || 0, 6) }).map(() => '<span class="psi-wrapper-dot"></span>').join('') + '</div>';
+
       let timerHtml = '';
-      if (activeKids > 0) {
-         timerHtml = `<span class="psi-timer">${activeKids} active</span>`;
-      } else if (isDone) {
-         timerHtml = `<span class="psi-timer">${s.subCount} done</span>`;
-      } else {
-         timerHtml = `<span class="psi-timer">${s.subCount} steps</span>`;
-      }
+      if (activeKids > 0) timerHtml = `<span class="psi-timer">${activeKids} active</span>`;
+      else if (isDone) timerHtml = `<span class="psi-timer">${s.subCount} done</span>`;
+      else timerHtml = `<span class="psi-timer">${s.subCount} steps</span>`;
 
       return `
-        <div class="${cls}" data-path="${s.path.join('-')}" 
-             ontouchstart="window._kachunk.wrapperDown('${s.path.join('-')}')"
-             ontouchend="window._kachunk.wrapperUp('${s.path.join('-')}')"
-             onmousedown="window._kachunk.wrapperDown('${s.path.join('-')}')"
-             onmouseup="window._kachunk.wrapperUp('${s.path.join('-')}')"
-             onclick="return false">
-          <div class="psi-icon" style="font-size:16px;">${icon}</div>
-          <div class="psi-content">
+        <div class="${cls}" data-path="${s.path.join('-')}" onclick="window._kachunk.wrapperToggle('${s.path.join('-')}')" style="margin-left:${indent}px;">
+          <div class="psi-loop-bar empty"></div>
+          <div class="psi-num">${icon}</div>
+          <div class="psi-label-wrap">
             <div class="psi-label">${esc(s.name)}</div>
+            ${dotRow}
           </div>
-          ${timerHtml}
+          ${timerHtml}<div class="psi-dur">${Math.round(parseFloat(s.minutes) || 0)}m</div>
         </div>
       `;
     }
 
-    // NORMAL STEP RENDERING
     const st = s._state;
     let cls = '';
     if (st.status === 'done') cls = 'completed';
@@ -773,37 +746,21 @@ function renderPlayerSteps() {
 
     const { secondsLeft: sl, overtimeSeconds: ot } = ChunkEngine.calc(st);
     let timerHtml = '';
-    if (st.status === 'running') {
-      timerHtml = `<span class="psi-timer">${Math.floor(sl / 60)}:${(sl % 60).toString().padStart(2, '0')}</span>`;
-    } else if (st.status === 'overtime') {
-      timerHtml = `<span class="psi-timer overtime">+${Math.floor(ot / 60)}:${(ot % 60).toString().padStart(2, '0')}</span>`;
-    } else if (st.status === 'paused') {
-      if (sl > 0) {
-        timerHtml = `<span class="psi-timer paused">${Math.floor(sl / 60)}:${(sl % 60).toString().padStart(2, '0')}</span>`;
-      } else {
-        timerHtml = `<span class="psi-timer paused overtime">+${Math.floor(ot / 60)}:${(ot % 60).toString().padStart(2, '0')}</span>`;
-      }
-    }
+    if (st.status === 'running') timerHtml = `<span class="psi-timer">${Math.floor(sl / 60)}:${(sl % 60).toString().padStart(2, '0')}</span>`;
+    else if (st.status === 'overtime') timerHtml = `<span class="psi-timer overtime">+${Math.floor(ot / 60)}:${(ot % 60).toString().padStart(2, '0')}</span>`;
+    else if (st.status === 'paused') timerHtml = sl > 0 ? `<span class="psi-timer paused">${Math.floor(sl / 60)}:${(sl % 60).toString().padStart(2, '0')}</span>` : `<span class="psi-timer paused overtime">+${Math.floor(ot / 60)}:${(ot % 60).toString().padStart(2, '0')}</span>`;
 
-    const icon = st.status === 'done' ? '&#x2713;'
-      : (st.status === 'running' || st.status === 'overtime') ? '&#x25CF;'
-      : st.status === 'paused' ? '&#x25CB;' : '&#x25CB;'; // dot instead of numbers inside nest
-
+    const icon = st.status === 'done' ? '&#x2713;' : (st.status === 'running' || st.status === 'overtime') ? '&#x25CF;' : st.status === 'paused' ? '&#x25CB;' : '&#x25CB;';
     const gi = eng.getStepLoopGroup(rawIdx);
     const loopColor = gi !== -1 ? LOOP_COLORS[gi % LOOP_COLORS.length] : '';
     const loopSeq = gi !== -1 ? eng.getStepLoopSeq(rawIdx) + 1 : 0;
     const inSelectGroup = eng.loopSelectMode && gi === eng.loopSelectGroupIdx;
     const barWidth = eng.loopSelectMode && gi !== -1 ? (inSelectGroup ? '5px' : '3px') : (gi !== -1 ? '2px' : '0');
-    const loopBarHtml = gi !== -1
-      ? `<div class="psi-loop-bar${inSelectGroup ? ' selecting' : ''}" style="background:${loopColor};width:${barWidth}"><span class="psi-loop-seq">${loopSeq}</span></div>`
-      : (eng.loopSelectMode ? '<div class="psi-loop-bar empty"></div>' : '<div class="psi-loop-bar empty"></div>');
-
-    const tapHandler = eng.loopSelectMode
-      ? `window._kachunk.loopStepTap(${rawIdx})`
-      : `window._kachunk.onStepTap(${rawIdx})`;
+    const loopBarHtml = gi !== -1 ? `<div class="psi-loop-bar${inSelectGroup ? ' selecting' : ''}" style="background:${loopColor};width:${barWidth}"><span class="psi-loop-seq">${loopSeq}</span></div>` : (eng.loopSelectMode ? '<div class="psi-loop-bar empty"></div>' : '<div class="psi-loop-bar empty"></div>');
+    const tapHandler = eng.loopSelectMode ? `window._kachunk.loopStepTap(${rawIdx})` : `window._kachunk.onStepTap(${rawIdx})`;
 
     return `
-      <div class="player-step-item ${cls}" onclick="${tapHandler}">
+      <div class="player-step-item ${cls}" onclick="${tapHandler}" style="margin-left:${indent}px;">
         ${loopBarHtml}
         <div class="psi-num">${icon}</div>
         <div class="psi-label-wrap"><div class="psi-label">${esc(s.label || 'Step')}</div></div>
@@ -1297,56 +1254,19 @@ export function isEnginePlaying(id) { return engines.get(id)?.playing || false; 
 let wrpTimer;
 let wrpTriggered = false;
 
-export function wrapperDown(pathStr) {
-  wrpTriggered = false;
-  wrpTimer = setTimeout(() => {
-    wrpTriggered = true;
-    playerGoDeeper(pathStr);
-  }, 500);
-}
-
-export function wrapperUp(pathStr) {
-  clearTimeout(wrpTimer);
-  if (wrpTriggered) return;
+export function wrapperToggle(pathStr) {
   const eng = viewingEngine();
   if (!eng) return;
   const wrapIdx = eng.flatSteps.findIndex(s => s.isWrapper && s.path.join('-') === pathStr);
-  if (wrapIdx !== -1 && wrapIdx + 1 < eng.flatSteps.length) {
-    onStepTap(wrapIdx + 1);
-  }
-}
-
-export function playerGoDeeper(pathStr) {
-  const eng = viewingEngine();
-  if (!eng) return;
-  eng.viewPath = pathStr ? pathStr.split('-').map(Number) : [];
+  if (wrapIdx !== -1) eng.focusedIdx = wrapIdx;
+  if (eng.expandedPaths.has(pathStr)) eng.expandedPaths.delete(pathStr);
+  else eng.expandedPaths.add(pathStr);
   playUiSound('boop');
-  switchPlayerView(eng);
+  updateFocusedDisplay();
+  renderPlayerSteps();
+  updateKachunkIcon();
 }
-
-export function playerPopUp() {
-  const eng = viewingEngine();
-  if (!eng || eng.viewPath.length === 0) return;
-  eng.viewPath = eng.viewPath.slice(0, -1);
-  playUiSound('boop');
-  switchPlayerView(eng);
-}
-let pullStartY = null;
 
 function initPullToPop() {
-  const list = DOM.playerStepsList;
-  if (!list || list._pullToPopBound) return;
-  list._pullToPopBound = true;
-
-  list.addEventListener('touchstart', (e) => {
-    if (list.scrollTop <= 0) pullStartY = e.touches[0].clientY;
-    else pullStartY = null;
-  }, { passive: true });
-
-  list.addEventListener('touchend', (e) => {
-    if (pullStartY == null) return;
-    const endY = e.changedTouches[0].clientY;
-    if (endY - pullStartY > 80) playerPopUp();
-    pullStartY = null;
-  }, { passive: true });
+  // retired: old pop-up navigation removed in favor of single-plane expand/collapse
 }
