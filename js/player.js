@@ -719,7 +719,19 @@ function renderPlayerSteps() {
         : '<div class="psi-wrapper-dots">' + Array.from({ length: Math.min(s.subCount || 0, 6) }).map(() => '<span class="psi-wrapper-dot"></span>').join('') + '</div>';
 
       let timerHtml = '';
-      if (activeKids > 0) timerHtml = `<span class="psi-timer">${activeKids} active</span>`;
+      const imminent = kids
+        .filter(k => ['running', 'paused', 'overtime'].includes(k._state.status))
+        .map(k => ({ k, calc: ChunkEngine.calc(k._state) }))
+        .sort((a, b) => {
+          const av = a.k._state.status === 'overtime' ? -a.calc.overtimeSeconds : a.calc.secondsLeft;
+          const bv = b.k._state.status === 'overtime' ? -b.calc.overtimeSeconds : b.calc.secondsLeft;
+          return av - bv;
+        })[0];
+
+      if (imminent) {
+        if (imminent.k._state.status === 'overtime') timerHtml = `<span class="psi-timer overtime">+${Math.floor(imminent.calc.overtimeSeconds / 60)}:${(imminent.calc.overtimeSeconds % 60).toString().padStart(2, '0')}</span>`;
+        else timerHtml = `<span class="psi-timer">${Math.floor(imminent.calc.secondsLeft / 60)}:${(imminent.calc.secondsLeft % 60).toString().padStart(2, '0')}</span>`;
+      } else if (activeKids > 0) timerHtml = `<span class="psi-timer">${activeKids} active</span>`;
       else if (isDone) timerHtml = `<span class="psi-timer">${s.subCount} done</span>`;
       else timerHtml = `<span class="psi-timer">${s.subCount} steps</span>`;
 

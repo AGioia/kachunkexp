@@ -927,7 +927,13 @@
   animation: loopShimmer 3s ease-in-out infinite;
 }
 
-.wrapper-step { background: rgba(240,235,227,0.03); }
+.wrapper-step {
+  background: rgba(240,235,227,0.03);
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px rgba(240,235,227,0.04);
+}
 .psi-wrapper-dots { display:flex; gap:4px; margin-top:4px; }
 .psi-wrapper-dot { width:5px; height:5px; border-radius:50%; background:rgba(240,235,227,0.18); display:inline-block; }
+.psi-wrapper-dot.active { background: var(--accent); box-shadow: 0 0 4px rgba(196,75,26,0.4); }
+227,0.18); display:inline-block; }
 .psi-wrapper-dot.active { background: var(--accent); }
